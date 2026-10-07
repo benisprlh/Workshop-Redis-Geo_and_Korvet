@@ -16,6 +16,26 @@ page.on('response', (r) => {
 page.on('console', (message) => {
   if (message.type() === 'error') consoleErrors.push(message.text());
 });
+async function waitForMap(target) {
+  await target.waitForFunction(() => {
+    const map = document.querySelector('.map-wrap');
+    const tiles = [...document.querySelectorAll('.leaflet-tile')];
+    return (
+      map?.getAttribute('data-map-mode') === 'online' &&
+      map.getAttribute('data-map-status') === 'ready' &&
+      tiles.length > 0 &&
+      tiles.every(
+        (tile) =>
+          tile.complete && tile.naturalWidth > 0 && Number(getComputedStyle(tile).opacity) === 1,
+      )
+    );
+  });
+  assert.equal(await target.locator('.leaflet-image-layer').count(), 0);
+  await target
+    .locator('.leaflet-control-attribution')
+    .getByRole('link', { name: 'OpenStreetMap' })
+    .waitFor();
+}
 try {
   for (const viewport of [
     { width: 1440, height: 900 },
@@ -34,6 +54,13 @@ try {
     ]) {
       await page.getByRole('link', { name, exact: true }).click();
       await page.getByRole('heading', { name, exact: true }).waitFor();
+      if (filename === 'geo') {
+        await waitForMap(page);
+        assert.equal(await page.locator('.map-marker').count(), 17);
+        await page
+          .getByRole('option', { name: 'Aset A-101 · Gambir', exact: true })
+          .waitFor({ state: 'attached' });
+      }
       assert.equal(
         await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
         false,
@@ -82,14 +109,39 @@ try {
   await page.setViewportSize({ width: 768, height: 1024 });
   await page.goto(`${url}/#geo`);
   await page.getByRole('heading', { name: 'Penugasan Lapangan', exact: true }).waitFor();
+  await waitForMap(page);
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
   assert.deepEqual(errors, []);
   assert.deepEqual(network, []);
   assert.deepEqual(consoleErrors, []);
-  await page.route('https://tile.openstreetmap.org/**', (route) => route.abort());
-  await page.getByRole('button', { name: 'Peta jalan', exact: true }).click();
-  await page.getByText('Tile tidak tersedia. Peta skematis tetap dapat dipakai.').waitFor();
-  assert.equal(await page.locator('.map-marker').count(), 17);
+  const offline = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+  const offlineErrors = [];
+  offline.on('pageerror', (error) => offlineErrors.push(error.message));
+  await offline.route('https://tile.openstreetmap.org/**', (route) => route.abort());
+  await offline.goto(`${url}/#geo`);
+  await offline.locator('.map-wrap[data-map-mode="offline"]').waitFor();
+  await offline
+    .getByText('Peta jalan tidak tersambung. Grid menampilkan koordinat dan wilayah yang sama.')
+    .waitFor();
+  assert.equal(await offline.locator('.map-marker').count(), 17);
+  await offline.locator('.leaflet-tooltip').first().waitFor();
+  assert.equal(await offline.locator('.leaflet-tooltip').count(), 7);
+  await offline.screenshot({
+    path: 'test-results/screenshots/starter-geo-offline-1366.png',
+    fullPage: true,
+  });
+  await offline.unroute('https://tile.openstreetmap.org/**');
+  await offline.getByRole('button', { name: 'Muat ulang peta', exact: true }).click();
+  await waitForMap(offline);
+  assert.equal(await offline.locator('.map-marker').count(), 17);
+  await offline.locator('.leaflet-container').click({ position: { x: 80, y: 160 } });
+  await offline
+    .getByRole('option', { name: 'Titik pada peta', exact: true })
+    .waitFor({ state: 'attached' });
+  await offline.getByRole('button', { name: 'Tampilkan seluruh area', exact: true }).click();
+  await waitForMap(offline);
+  assert.deepEqual(offlineErrors, []);
+  await offline.close();
   await mkdir('test-results', { recursive: true });
   await writeFile(
     'test-results/browser-review.json',
@@ -99,6 +151,8 @@ try {
         network,
         consoleErrorsBeforeTileTest: [],
         tileFallback: true,
+        realMap: 'OpenStreetMap / Jakarta Pusat',
+        tileRetry: true,
         viewports: ['1440x900', '1366x768', '768x1024'],
         starter: true,
       },
@@ -107,7 +161,7 @@ try {
     ),
   );
   console.log(
-    'LULUS: tiga halaman starter, empat petunjuk, panduan HTML/tautan/gambar, filter aset, kontrol terkunci, keyboard drawer, tanpa pageerror/API error/overflow.',
+    'LULUS: tiga halaman starter, peta OpenStreetMap nyata, koordinat Jakarta Pusat, fallback/retry tile, empat petunjuk, panduan, filter, kontrol terkunci, tanpa pageerror/API error/overflow.',
   );
 } finally {
   await browser.close();

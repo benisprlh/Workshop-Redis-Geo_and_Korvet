@@ -1,8 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import {
   MapContainer,
-  ImageOverlay,
   TileLayer,
   Circle,
   Polyline,
@@ -11,15 +10,11 @@ import {
   useMapEvents,
   useMap,
 } from 'react-leaflet';
-import { Map as MapIcon, Expand } from 'lucide-react';
+import { Map as MapIcon, Expand, RotateCw } from 'lucide-react';
 import type { Asset, Technician, NearbyTechnician, Position } from '@fieldops/contracts';
 
-const bounds: L.LatLngBoundsExpression = [
-  [-7.05, 109.96],
-  [-6.976, 110.058],
-];
-const schematic = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 740"><defs><pattern id="grid" width="70" height="70" patternUnits="userSpaceOnUse"><path d="M70 0H0V70" fill="none" stroke="#dce3e6" stroke-width="1"/></pattern></defs><rect width="980" height="740" fill="#edf1f0"/><rect width="980" height="740" fill="url(#grid)"/><path d="M0 90H165V0M300 0V176H0M495 0V200H980M820 0V740M0 410H315V740M0 620H980M580 340V740" stroke="#e2e8e5" stroke-width="28" fill="none"/><path d="M0 270Q300 315 470 276T980 275M395 0Q375 265 430 440T490 740M0 500Q240 482 420 510T980 470" stroke="#cdd5d8" stroke-width="20" fill="none"/><path d="M0 270Q300 315 470 276T980 275M395 0Q375 265 430 440T490 740M0 500Q240 482 420 510T980 470" stroke="#fff" stroke-width="16" fill="none"/><path d="M685 0Q605 155 708 290T745 740" stroke="#c8dbe3" stroke-width="31" fill="none"/><path d="M80 90h152v91H80zM590 520h120v130H590zM858 322h88v73h-88z" fill="#dfe9e0"/><g font-family="Arial,sans-serif" font-size="16" fill="#8a999d" letter-spacing="2"><text x="110" y="380">AREA BARAT</text><text x="445" y="380">AREA PUSAT</text><text x="825" y="205">AREA TIMUR</text><text x="365" y="670">AREA SELATAN</text><text x="310" y="90">AREA UTARA</text></g><g font-family="Arial,sans-serif" font-size="11" fill="#9aa5a7"><text x="15" y="730">SKEMA KOORDINAT SIMULASI · BUKAN PETA FASILITAS</text></g></svg>`;
-const image = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(schematic)}`;
+const attribution =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 function icon(kind: 'asset' | 'tech' | 'point', selected: boolean, result = false, busy = false) {
   return L.divIcon({
     className: 'marker-container',
@@ -28,12 +23,23 @@ function icon(kind: 'asset' | 'tech' | 'point', selected: boolean, result = fals
     iconAnchor: [14, 14],
   });
 }
-function Events({ onPoint, reset }: { onPoint: (p: Position) => void; reset: number }) {
+function Events({
+  onPoint,
+  reset,
+  bounds,
+}: {
+  onPoint: (p: Position) => void;
+  reset: number;
+  bounds: L.LatLngBounds;
+}) {
   const map = useMapEvents({
     click: (event) => onPoint({ longitude: event.latlng.lng, latitude: event.latlng.lat }),
   });
+  const currentBounds = useRef(bounds);
+  currentBounds.current = bounds;
   useEffect(() => {
-    map.fitBounds(bounds, { padding: [14, 14] });
+    // Posisi baru tidak menggeser peta yang sedang diperiksa; tombol area memakai bounds terbaru.
+    map.fitBounds(currentBounds.current, { padding: [30, 54] });
   }, [map, reset]);
   const previous = useRef<[number, number]>([0, 0]);
   useEffect(() => {
@@ -49,13 +55,15 @@ function Events({ onPoint, reset }: { onPoint: (p: Position) => void; reset: num
   }, [map]);
   return null;
 }
-function Scale() {
+function MapControls() {
   const map = useMap();
   useEffect(() => {
     const control = L.control.scale({ imperial: false, position: 'bottomleft' });
     control.addTo(map);
+    map.attributionControl.addAttribution(attribution);
     return () => {
       control.remove();
+      map.attributionControl.removeAttribution(attribution);
     };
   }, [map]);
   return null;
@@ -85,26 +93,44 @@ export default function FieldMap({
   onTech: (id: string) => void;
   onPoint: (p: Position) => void;
 }) {
-  const [tiles, setTiles] = useState(false);
-  const [tileError, setTileError] = useState(false);
+  const [mode, setMode] = useState<'online' | 'offline'>('online');
+  const [tileStatus, setTileStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [attempt, setAttempt] = useState(0);
   const [reset, setReset] = useState(0);
+  const failedTiles = useRef(false);
   const selected = technicians.find((t) => t.id === selectedId);
+  const bounds = useMemo(
+    () =>
+      L.latLngBounds([...assets, ...technicians].map((p) => [p.latitude, p.longitude])).pad(0.12),
+    [assets, technicians],
+  );
+  useEffect(() => {
+    if (mode !== 'online' || tileStatus !== 'loading') return;
+    const timer = window.setTimeout(() => {
+      failedTiles.current = true;
+      setTileStatus('error');
+      setMode('offline');
+    }, 12000);
+    return () => window.clearTimeout(timer);
+  }, [mode, tileStatus, attempt]);
+  function retryTiles() {
+    failedTiles.current = false;
+    setAttempt((value) => value + 1);
+    setTileStatus('loading');
+    setMode('online');
+  }
   return (
-    <div className="map-wrap">
+    <div className="map-wrap" data-map-mode={mode} data-map-status={tileStatus}>
       <div className="map-tools">
         <span>
           <MapIcon size={15} />
-          {tiles ? 'OpenStreetMap' : 'Peta skematis'}
+          Jakarta Pusat <small>Indonesia</small>
         </span>
-        <button
-          className="text-button"
-          onClick={() => {
-            setTileError(false);
-            setTiles(!tiles);
-          }}
-        >
-          {tiles ? 'Gunakan skema' : 'Peta jalan'}
-        </button>
+        {mode === 'offline' && (
+          <button className="text-button" onClick={retryTiles}>
+            <RotateCw size={13} /> Muat ulang peta
+          </button>
+        )}
         <button
           className="icon-button"
           title="Tampilkan seluruh area"
@@ -116,29 +142,35 @@ export default function FieldMap({
       </div>
       <MapContainer
         bounds={bounds}
-        boundsOptions={{ padding: [14, 14] }}
+        boundsOptions={{ padding: [30, 54] }}
         zoomSnap={0.25}
         zoomControl={true}
-        minZoom={10}
-        maxZoom={17}
+        minZoom={4}
+        maxZoom={19}
         attributionControl={true}
         className="field-map"
       >
-        <ImageOverlay url={image} bounds={bounds} />
-        {tiles && (
+        {mode === 'online' && (
           <TileLayer
+            key={attempt}
             url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            maxNativeZoom={19}
+            keepBuffer={1}
             eventHandlers={{
+              loading: () => setTileStatus('loading'),
+              load: () => {
+                if (!failedTiles.current) setTileStatus('ready');
+              },
               tileerror: () => {
-                setTileError(true);
-                setTiles(false);
+                failedTiles.current = true;
+                setTileStatus('error');
+                setMode('offline');
               },
             }}
           />
         )}
-        <Events onPoint={onPoint} reset={reset} />
-        <Scale />
+        <Events onPoint={onPoint} reset={reset} bounds={bounds} />
+        <MapControls />
         {searched && (
           <Circle
             center={[center.latitude, center.longitude]}
@@ -162,7 +194,7 @@ export default function FieldMap({
             icon={icon('asset', assetId === a.id)}
             eventHandlers={{ click: () => onAsset(a.id) }}
           >
-            <Tooltip direction="top" offset={[0, -9]}>
+            <Tooltip key={mode} direction="top" offset={[0, -9]} permanent={mode === 'offline'}>
               {a.name} · {a.area}
             </Tooltip>
           </Marker>
@@ -180,7 +212,7 @@ export default function FieldMap({
             eventHandlers={{ click: () => onTech(t.id) }}
           >
             <Tooltip direction="top" offset={[0, -9]}>
-              {t.name} · {t.status === 'available' ? 'Tersedia' : 'Bertugas'}
+              {t.name} · {t.area} · {t.status === 'available' ? 'Tersedia' : 'Bertugas'}
             </Tooltip>
           </Marker>
         ))}
@@ -203,11 +235,16 @@ export default function FieldMap({
         <span>
           <i className="legend-line" /> Penghubung lokasi
         </span>
-        <small>Semua posisi simulasi</small>
+        <small>Aset & teknisi workshop</small>
       </div>
-      {tileError && (
+      {mode === 'offline' && (
         <div className="map-notice" role="status">
-          Tile tidak tersedia. Peta skematis tetap dapat dipakai.
+          Peta jalan tidak tersambung. Grid menampilkan koordinat dan wilayah yang sama.
+        </div>
+      )}
+      {mode === 'online' && tileStatus === 'loading' && (
+        <div className="map-loading" role="status">
+          Memuat peta…
         </div>
       )}
     </div>

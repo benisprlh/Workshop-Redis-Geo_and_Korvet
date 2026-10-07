@@ -1,0 +1,128 @@
+{
+  "region": "Jakarta Pusat, Indonesia",
+  "verifiedOn": "2026-10-07",
+  "attribution": "© OpenStreetMap contributors",
+  "license": "https://www.openstreetmap.org/copyright",
+  "coordinateMeaning": "Titik representatif wilayah administratif; bukan alamat aset atau posisi teknisi nyata.",
+  "locations": [
+    {
+      "name": "Gambir",
+      "longitude": 106.8167439,
+      "latitude": -6.1711625,
+      "osmRelationId": 7313694,
+      "source": "https://www.openstreetmap.org/relation/7313694"
+    },
+    {
+      "name": "Menteng",
+      "longitude": 106.8322242,
+      "latitude": -6.1950265,
+      "osmRelationId": 7212895,
+      "source": "https://www.openstreetmap.org/relation/7212895"
+    },
+    {
+      "name": "Tanah Abang",
+      "longitude": 106.8094996,
+      "latitude": -6.2052581,
+      "osmRelationId": 5802417,
+      "source": "https://www.openstreetmap.org/relation/5802417"
+    },
+    {
+      "name": "Senen",
+      "longitude": 106.8432354,
+      "latitude": -6.184971,
+      "osmRelationId": 5802405,
+      "source": "https://www.openstreetmap.org/relation/5802405"
+    },
+    {
+      "name": "Sawah Besar",
+      "longitude": 106.8335798,
+      "latitude": -6.1558913,
+      "osmRelationId": 5802432,
+      "source": "https://www.openstreetmap.org/relation/5802432"
+    },
+    {
+      "name": "Kemayoran",
+      "longitude": 106.8450861,
+      "latitude": -6.1648157,
+      "osmRelationId": 5802412,
+      "source": "https://www.openstreetmap.org/relation/5802412"
+    },
+    {
+      "name": "Cempaka Putih",
+      "longitude": 106.8685256,
+      "latitude": -6.1812095,
+      "osmRelationId": 5802406,
+      "source": "https://www.openstreetmap.org/relation/5802406"
+    },
+    {
+      "name": "Petojo Selatan",
+      "longitude": 106.816434,
+      "latitude": -6.1750093,
+      "osmRelationId": 5802285,
+      "source": "https://www.openstreetmap.org/relation/5802285"
+    },
+    {
+      "name": "Petojo Utara",
+      "longitude": 106.8153732,
+      "latitude": -6.1655438,
+      "osmRelationId": 5802319,
+      "source": "https://www.openstreetmap.org/relation/5802319"
+    },
+    {
+      "name": "Kebon Kelapa",
+      "longitude": 106.8247393,
+      "latitude": -6.1642923,
+      "osmRelationId": 5802205,
+      "source": "https://www.openstreetmap.org/relation/5802205"
+    },
+    {
+      "name": "Pasar Baru",
+      "longitude": 106.8334669,
+      "latitude": -6.164901,
+      "osmRelationId": 5802134,
+      "source": "https://www.openstreetmap.org/relation/5802134"
+    },
+    {
+      "name": "Kebon Sirih",
+      "longitude": 106.8311054,
+      "latitude": -6.1850822,
+      "osmRelationId": 5802159,
+      "source": "https://www.openstreetmap.org/relation/5802159"
+    },
+    {
+      "name": "Kebon Kacang",
+      "longitude": 106.8166009,
+      "latitude": -6.1902407,
+      "osmRelationId": 5802202,
+      "source": "https://www.openstreetmap.org/relation/5802202"
+    },
+    {
+      "name": "Cikini",
+      "longitude": 106.8395502,
+      "latitude": -6.1913465,
+      "osmRelationId": 7212839,
+      "source": "https://www.openstreetmap.org/relation/7212839"
+    },
+    {
+      "name": "Kramat",
+      "longitude": 106.845965,
+      "latitude": -6.1838194,
+      "osmRelationId": 5802385,
+      "source": "https://www.openstreetmap.org/relation/5802385"
+    },
+    {
+      "name": "Bungur",
+      "longitude": 106.8482316,
+      "latitude": -6.1713909,
+      "osmRelationId": 5802331,
+      "source": "https://www.openstreetmap.org/relation/5802331"
+    },
+    {
+      "name": "Cempaka Putih Barat",
+      "longitude": 106.863096,
+      "latitude": -6.1797434,
+      "osmRelationId": 7198389,
+      "source": "https://www.openstreetmap.org/relation/7198389"
+    }
+  ]
+}

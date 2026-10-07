@@ -90,6 +90,21 @@ async function validate() {
   return state;
 }
 async function screenshot(page, name) {
+  if (await page.locator('.map-wrap').count()) {
+    await page.waitForFunction(() => {
+      const map = document.querySelector('.map-wrap');
+      const tiles = [...document.querySelectorAll('.leaflet-tile')];
+      return (
+        map?.getAttribute('data-map-mode') === 'online' &&
+        map.getAttribute('data-map-status') === 'ready' &&
+        tiles.length > 0 &&
+        tiles.every(
+          (tile) =>
+            tile.complete && tile.naturalWidth > 0 && Number(getComputedStyle(tile).opacity) === 1,
+        )
+      );
+    });
+  }
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.waitForFunction(() => scrollY === 0);
   await page.screenshot({
@@ -107,28 +122,40 @@ try {
   await validate();
   let state = await api('/state');
   assert.equal(state.positionsReady, true);
-  const center = { longitude: 110.01, latitude: -7.01 };
+  const asset = state.assets.find((a) => a.id === 'A-101');
+  const original = state.technicians.find((t) => t.id === 'T-01');
+  const center = { longitude: asset.longitude, latitude: asset.latitude };
+  const originalPosition = { longitude: original.longitude, latitude: original.latitude };
+  const farPosition = { longitude: 107.6191, latitude: -6.9175 }; // Bandung, di luar radius Jakarta.
+  assert.equal(asset.area, 'Gambir');
   const search = await api('/geo/search', 'POST', { center, radiusKm: 1 });
   assert.ok(search.results.length > 0);
+  assert.deepEqual(
+    search.results.map((t) => t.id),
+    ['T-01', 'T-02'],
+  );
+  assert.ok(search.results[0].distanceKm > 0.4 && search.results[0].distanceKm < 0.5);
+  const wider = await api('/geo/search', 'POST', { center, radiusKm: 3 });
+  assert.equal(wider.results.length, 6);
   assert.ok(search.results.every((r, i, arr) => i === 0 || r.distanceKm >= arr[i - 1].distanceKm));
   const empty = await api('/geo/search', 'POST', {
-    center: { longitude: 100, latitude: 0 },
+    center: farPosition,
     radiusKm: 1,
   });
   assert.equal(empty.results.length, 0);
   const invalid = await fetch(`${base}/api/technicians/T-01/position`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ longitude: 190, latitude: -7 }),
+    body: JSON.stringify({ longitude: 190, latitude: center.latitude }),
   });
   assert.equal(invalid.status, 400);
-  await api('/technicians/T-01/position', 'PUT', { longitude: 110.2, latitude: -7.2 });
+  await api('/technicians/T-01/position', 'PUT', farPosition);
   const changed = await api('/geo/search', 'POST', { center, radiusKm: 1 });
   assert.equal(
     changed.results.some((t) => t.id === 'T-01'),
     false,
   );
-  await api('/technicians/T-01/position', 'PUT', { longitude: 110.006, latitude: -7.008 });
+  await api('/technicians/T-01/position', 'PUT', originalPosition);
   await wait(async () => (await api('/state')).infra.consumer, 20, 'Consumer belum join group.');
   const event = {
     eventId: randomUUID(),
@@ -189,19 +216,23 @@ try {
   await screenshot(page, 'solution-overview');
   await page.getByRole('link', { name: 'Penugasan Lapangan', exact: true }).click();
   await page.getByRole('button', { name: 'Cari teknisi terdekat' }).click();
-  await page
-    .getByText('2 teknisi', { exact: true })
-    .waitFor({ timeout: 10000 })
-    .catch(async () => {
-      assert.ok((await page.locator('.technician-row').count()) > 0);
-    });
+  await page.getByText('6 teknisi', { exact: true }).waitFor();
+  assert.equal(await page.locator('.technician-row').count(), 6);
   await screenshot(page, 'solution-geo');
-  await page.getByLabel('Longitude teknisi').fill('110.2');
-  await page.getByLabel('Latitude teknisi').fill('-7.2');
+  const movedTechnician = await page.locator('.detail-heading h3').textContent();
+  await page.getByLabel('Longitude teknisi').fill(String(farPosition.longitude));
+  await page.getByLabel('Latitude teknisi').fill(String(farPosition.latitude));
   await page.getByRole('button', { name: 'Perbarui posisi' }).click();
   await page
     .getByText('Posisi tersimpan di Redis. Cari kembali untuk melihat perubahan.')
     .waitFor();
+  await page.getByRole('button', { name: 'Cari teknisi terdekat' }).click();
+  await page.getByText('5 teknisi', { exact: true }).waitFor();
+  assert.equal(
+    await page.locator('.technician-row').filter({ hasText: movedTechnician }).count(),
+    0,
+  );
+  await api('/technicians/T-01/position', 'PUT', originalPosition);
   await page.getByRole('link', { name: 'Monitoring Aset', exact: true }).click();
   await page.getByLabel('Skenario simulasi').selectOption('temperature');
   await page.getByRole('button', { name: 'Mulai simulasi' }).click();

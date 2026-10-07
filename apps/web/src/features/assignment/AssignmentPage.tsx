@@ -97,7 +97,7 @@ export default function AssignmentPage({
       <div className="page-heading">
         <div>
           <h1>Penugasan Lapangan</h1>
-          <p>Tentukan titik gangguan dan temukan teknisi dalam radius.</p>
+          <p>Cari teknisi di Jakarta Pusat berdasarkan lokasi gangguan.</p>
         </div>
         <Badge tone={s.positionsReady ? 'green' : 'neutral'}>
           {s.positionsReady ? 'Posisi dari Redis' : 'Marker preview'}
@@ -233,7 +233,7 @@ export default function AssignmentPage({
               </Badge>
             </div>
             <p className="muted">
-              {selected.area} · {selected.skills.join(', ')}
+              Area tugas: {selected.area} · {selected.skills.join(', ')}
             </p>
             <p className="position-origin">
               Posisi:{' '}

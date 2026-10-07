@@ -115,7 +115,7 @@ try {
   const search = await fetch(`${base}/api/geo/search`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ center: { longitude: 110.01, latitude: -7.01 }, radiusKm: 3 }),
+    body: JSON.stringify({ center: { longitude: 106.8167439, latitude: -6.1711625 }, radiusKm: 3 }),
   });
   assert.equal(search.status, 503);
   const storage = await fetch(`${base}/api/storage`);

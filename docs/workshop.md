@@ -11,6 +11,8 @@ Dua use case, empat latihan, dua file yang diedit. Target peserta: dapat membaca
 
 Mulai aplikasi sesuai [README](../README.md), lalu buka http://localhost:8088. **Mode workshop** menyediakan tiga tingkat petunjuk. Simpan perubahan, tunggu watcher restart, lalu tekan **Periksa latihan**; semua fitur dinilai dari perilaku fungsi yang sama dengan API.
 
+Peta memakai OpenStreetMap dengan wilayah nyata di Jakarta Pusat. Aset dan teknisi workshop ditempatkan pada titik representatif kecamatan/kelurahan, bukan alamat fasilitas. Nama wilayah serta koordinat awal tersedia pada [data lokasi](assets/jakarta-locations.json). Marker dapat dipilih sebelum latihan selesai; hasil radius tetap berasal dari Redis setelah validasi.
+
 ## GEO-01
 
 **File:** `apps/api/src/labs/geo.ts` · **Operasi:** `GEOADD`
@@ -60,9 +62,9 @@ findNearbyTechnicians(redis, key, center, radiusKm): Promise<GeoHit[]>
 
 Input: index teknisi, pusat gangguan `{ longitude, latitude }`, radius kilometer. Isi command `GEOSEARCH` dengan `FROMLONLAT`, `BYRADIUS`, `km`, `ASC`, `WITHDIST`, dan `WITHCOORD`. Kembalikan hasil melalui `parseGeoReply(reply)`; helper hanya mengubah bentuk reply Redis.
 
-Setiap hasil: `{ technicianId, distanceKm, longitude, latitude }`. Tidak ada hasil berarti `[]`. Contoh: T-01 pada `(0.005, 0)` dan T-02 pada `(0.025, 0)`; dari `(0, 0)`, radius 1 km memuat T-01 sekitar 0,56 km, radius 3 km memuat keduanya dengan T-01 lebih awal.
+Setiap hasil: `{ technicianId, distanceKm, longitude, latitude }`. Tidak ada hasil berarti `[]`. Contoh dari Aset A-101 di Gambir `(106.8167439, -6.1711625)`: radius 1 km memuat T-01 di Petojo Selatan sekitar 0,43 km dan T-02 di Petojo Utara sekitar 0,64 km. Radius 3 km memuat enam teknisi, diurutkan dari yang terdekat. Angka ini berasal dari koordinat awal dataset; hasil berubah setelah posisi diperbarui.
 
-**Uji di konsol:** pilih Aset A-101, cari radius 1/3/5 km, lalu pilih teknisi. Pindahkan T-01 melalui form dan ulangi pencarian. Coba titik jauh untuk hasil kosong. Validator membandingkan anggota, urutan, jarak, dan koordinat terhadap Redis pada beberapa pusat/radius.
+**Uji di konsol:** pilih Aset A-101, cari radius 1/3/5 km, lalu pilih teknisi. Pindahkan T-01 ke koordinat contoh Cempaka Putih `(106.8685256, -6.1812095)` melalui form dan ulangi pencarian 1 km; T-01 keluar dari hasil. Kembalikan ke Petojo Selatan `(106.8164340, -6.1750093)` untuk mencoba lagi. Coba titik jauh untuk hasil kosong. Validator membandingkan anggota, urutan, jarak, dan koordinat terhadap Redis pada beberapa pusat/radius.
 
 Jarak adalah jarak geografis. Garis peta merupakan penghubung lokasi, tanpa rute jalan atau estimasi tiba. Index hanya berisi teknisi; marker aset berasal dari metadata terpisah.
 

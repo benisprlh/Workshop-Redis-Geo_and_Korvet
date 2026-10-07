@@ -1,6 +1,6 @@
 # FieldOps
 
-Workshop Redis untuk penugasan teknisi dan monitoring aset. Durasi 60–90 menit; peserta mengisi empat fungsi pada dua file TypeScript. Seluruh identitas, koordinat, dan sensor adalah simulasi.
+Workshop Redis untuk penugasan teknisi dan monitoring aset. Durasi 60–90 menit; peserta mengisi empat fungsi pada dua file TypeScript. Peta dan contoh wilayah memakai lokasi nyata di Jakarta Pusat; aset, teknisi, dan sensor adalah data workshop.
 
 ![Konsol FieldOps](docs/assets/overview.png)
 
@@ -53,4 +53,4 @@ docs/               Tiga panduan dan screenshot terpilih
 - [Pengelolaan](docs/operations.md): konfigurasi, jawaban/reset, struktur source, pengujian, dan troubleshooting.
 - [Referensi](docs/references.md): versi yang dipin, commit sumber, format storage aktual, batas verifikasi, dan lisensi.
 
-Alur monitoring: simulator backend → KafkaJS producer → Korvet → Redis Streams → KafkaJS consumer → SSE. Korvet memakai image distribusi resmi; tidak ada broker Apache Kafka terpisah. Peta skematis lokal tersedia tanpa internet; mode OpenStreetMap mempertahankan attribution.
+Alur monitoring: simulator backend → KafkaJS producer → Korvet → Redis Streams → KafkaJS consumer → SSE. Korvet memakai image distribusi resmi; tidak ada broker Apache Kafka terpisah. Peta OpenStreetMap langsung menampilkan Jakarta Pusat, dengan contoh Gambir, Menteng, Senen, Tanah Abang, Sawah Besar, Kemayoran, dan Cempaka Putih. Jika tile internet gagal, grid koordinat tetap memperlihatkan marker dan radius; **Muat ulang peta** mencoba koneksi kembali.

@@ -34,10 +34,17 @@
   align-items: center;
   gap: 7px;
   padding: 7px 10px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: #687787;
   box-shadow: 0 1px 4px #192b4610;
+}
+.map-tools > span small {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--muted);
+  border-left: 1px solid var(--line);
+  padding-left: 8px;
 }
 .map-tools .text-button {
   margin-left: auto;
@@ -47,6 +54,9 @@
   padding: 7px 10px;
   color: #536d90;
   pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 .map-tools .icon-button {
   background: white;
@@ -54,12 +64,23 @@
   pointer-events: auto;
   width: 32px;
   height: 32px;
+  margin-left: auto;
+}
+.map-tools .text-button + .icon-button {
+  margin-left: 0;
 }
 .leaflet-container.field-map {
-  height: 568px;
+  height: clamp(420px, calc(100vh - 280px), 568px);
   width: 100%;
   background: #edf1f0;
   font-family: inherit;
+}
+.map-wrap[data-map-mode='offline'] .leaflet-container.field-map {
+  background-color: #f0f3f5;
+  background-image:
+    linear-gradient(#dfe5e9 1px, transparent 1px),
+    linear-gradient(90deg, #dfe5e9 1px, transparent 1px);
+  background-size: 48px 48px;
 }
 .leaflet-control-zoom {
   margin-top: 64px !important;
@@ -76,7 +97,7 @@
   font-size: 18px !important;
 }
 .leaflet-control-attribution {
-  font-size: 9px !important;
+  font-size: 10px !important;
   background: #ffffffc9 !important;
 }
 .leaflet-tooltip {
@@ -194,10 +215,31 @@
   padding: 0 2px;
 }
 .map-notice {
+  position: absolute;
+  z-index: 450;
+  left: 12px;
+  right: 12px;
+  bottom: 74px;
   padding: 10px 16px;
   background: #fffaf0;
   color: #8e784f;
   font-size: 11px;
+  border: 1px solid #eadfbd;
+  border-radius: 5px;
+  pointer-events: none;
+}
+.map-loading {
+  position: absolute;
+  z-index: 450;
+  left: 12px;
+  bottom: 75px;
+  padding: 6px 10px;
+  font-size: 11px;
+  background: white;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  pointer-events: none;
 }
 .assignment-panel > .section-heading {
   border-bottom: 1px solid var(--line);

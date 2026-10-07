@@ -34,7 +34,7 @@ export default function OverviewPage({
       <div className="page-heading">
         <div>
           <h1>Ringkasan</h1>
-          <p>Aset dan kesiapan tim di area simulasi.</p>
+          <p>Aset workshop dan kesiapan tim di Jakarta Pusat.</p>
         </div>
         <button className="button primary" onClick={() => navigate('geo')}>
           Buka penugasan <ArrowRight size={16} />

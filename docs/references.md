@@ -1,6 +1,6 @@
 # Referensi, versi, dan verifikasi
 
-Referensi dibaca pada **6 Oktober 2026**. Link menunjuk sumber resmi. Data serta identitas operasional dalam FieldOps dibuat untuk simulasi dan tidak berasal dari sumber organisasi pelanggan.
+Referensi Redis/Korvet dibaca pada **6 Oktober 2026**; sumber geografi diperiksa pada **7 Oktober 2026**. Link menunjuk sumber resmi. Data serta identitas operasional dalam FieldOps dibuat untuk workshop dan tidak berasal dari sumber organisasi pelanggan. Peta, nama wilayah, dan koordinat contoh menggunakan geografi nyata Indonesia.
 
 ## Snapshot distribusi Korvet
 
@@ -84,6 +84,15 @@ GEOSEARCH tersedia sejak Redis 6.2. Distribusi Korvet dapat mensyaratkan fitur R
 
 Halaman producer/consumer resmi menampilkan versi **2.2.4** pada header ketika dibaca. URL `/docs/2.2.4/producing` bukan endpoint dokumentasi yang valid. Dependency aplikasi dipin `kafkajs: 2.2.4`, mengikuti sample dan API yang dibaca. FieldOps memakai producer non-transactional, satu partition, `subscribe` serta `eachMessage`, tanpa klaim implementasi seluruh fitur Kafka atau exactly-once delivery.
 
+## Peta dan lokasi Indonesia
+
+- [Daftar wilayah Jakarta Pusat](https://pusat.jakarta.go.id/tentang/sejarah): konteks kecamatan yang digunakan pada contoh.
+- [OpenStreetMap](https://www.openstreetmap.org/): basemap jalan Indonesia, ditampilkan langsung melalui Leaflet. Attribution tetap terlihat saat online maupun pada grid offline.
+- [Sumber 17 koordinat](assets/jakarta-locations.json): titik representatif wilayah administratif dari data OpenStreetMap. Setiap entri mencatat nama, longitude, latitude, dan link relation sumber. Pencocokan memilih batas wilayah, bukan hasil pencarian stasiun atau fasilitas yang memiliki nama sama.
+- [Kebijakan tile](https://operations.osmfoundation.org/policies/tiles/): hanya tile viewport yang dimuat melalui browser dan cache HTTP normal; tidak ada unduh massal atau paket peta offline. Ketersediaan tile mengikuti layanan publik tersebut.
+- [Kebijakan Nominatim](https://operations.osmfoundation.org/policies/nominatim/): dipakai hanya saat menyusun dataset, satu mesin/satu thread, paling cepat satu permintaan per detik, dengan User-Agent FieldOps dan hasil dicache. Aplikasi tidak memanggil API geocoding saat dijalankan.
+- [Lisensi/attribution OpenStreetMap](https://www.openstreetmap.org/copyright): data geografis © OpenStreetMap contributors, ODbL. Aset, teknisi, dan sensor tetap fiktif; koordinat tidak menyatakan lokasi fasilitas atau petugas nyata.
+
 ## Versi project dan status verifikasi
 
 Runtime Node dipin **22.22.0**, package manager **npm 10.9.4**. Versi dependency frontend/backend dipin pada `package.json` dan `package-lock.json`; image infrastruktur dipin pada `compose.yaml`. Pin adalah konfigurasi reproducible, sedangkan pengujian runtime adalah bukti terpisah.
@@ -110,8 +119,8 @@ Hasil pemeriksaan dan cara mengulangnya ada pada [pengelolaan](operations.md#cat
 
 - Satu peserta/instance dan satu consumer dashboard/backend; prefix lab bukan isolasi akses.
 - Ring buffer serta deduplikasi tampilan dibatasi untuk sesi demo, bukan penyimpanan historis aplikasi produksi.
-- Jarak geografis, garis penghubung, sensor, threshold, dan alarm adalah simulasi, bukan navigasi atau kontrol operasi.
-- UI peta skematis lokal tidak memerlukan tile internet. Mode OpenStreetMap opsional mempertahankan attribution.
+- Jarak geografis dihitung Redis dari koordinat contoh nyata; garis penghubung tidak merupakan rute jalan. Sensor, threshold, dan alarm adalah simulasi.
+- OpenStreetMap menjadi tampilan awal. Saat tile gagal, grid berlabel tetap menampilkan koordinat, marker, dan radius tanpa menggambar jalan buatan.
 - Validator menggunakan fixture beberapa input dengan timeout dan cleanup milik lab. Helper uji bukan fallback aplikasi.
 - Distribusi Korvet adalah komersial. Notice asli dipertahankan; penggunaan production memerlukan lisensi sesuai notice resmi.
 
@@ -119,4 +128,4 @@ Hasil pemeriksaan dan cara mengulangnya ada pada [pengelolaan](operations.md#cat
 
 Notice asli distribusi Korvet dipertahankan tanpa perubahan di [licenses/korvet-LICENSE.txt](licenses/korvet-LICENSE.txt). Korvet merupakan produk komersial Redis Ltd.; notice mengatur evaluasi/pengujian internal dan lisensi production. FieldOps memakai distribusi resmi dan bukan source inti atau implementasi ulang Korvet.
 
-Dependency npm dan image mempertahankan lisensi distribusinya. KafkaJS, React, TypeScript, Vite, Express, node-redis, Leaflet dan Lucide dibundel lokal; lisensi dependency tersedia setelah npm ci. Marked 15.0.12 merender panduan lokal; Prettier 3.6.2 menjaga format source. Peta skematis dibuat lokal, mode tile memakai OpenStreetMap dengan attribution.
+Dependency npm dan image mempertahankan lisensi distribusinya. KafkaJS, React, TypeScript, Vite, Express, node-redis, Leaflet dan Lucide dibundel lokal; lisensi dependency tersedia setelah npm ci. Marked 15.0.12 merender panduan lokal; Prettier 3.6.2 menjaga format source. Peta dan koordinat wilayah memakai OpenStreetMap dengan attribution.

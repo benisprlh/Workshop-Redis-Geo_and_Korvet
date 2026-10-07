@@ -16,6 +16,7 @@ const assets = new Set([
   'workshop.png',
   'assignment-solution.png',
   'monitoring-solution.png',
+  'jakarta-locations.json',
 ]);
 const projectRoot = () =>
   process.cwd().endsWith('/apps/api') ? resolve(process.cwd(), '../..') : process.cwd();
@@ -66,7 +67,7 @@ export function registerGuides(app: Express): void {
   });
   app.get('/api/docs/assets/:file', (req, res) => {
     if (!assets.has(req.params.file)) {
-      res.status(404).json({ error: 'Gambar tidak ditemukan.' });
+      res.status(404).json({ error: 'Lampiran tidak ditemukan.' });
       return;
     }
     res.sendFile(resolve(projectRoot(), 'docs/assets', req.params.file));

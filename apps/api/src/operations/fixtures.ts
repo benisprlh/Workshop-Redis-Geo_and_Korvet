@@ -1,39 +1,60 @@
-import type { Asset, Technician } from '@fieldops/contracts';
+import type { Asset, Technician, Position } from '@fieldops/contracts';
 
-// Titik buatan di satu bidang koordinat; tidak merepresentasikan fasilitas nyata.
+// Titik representatif wilayah Jakarta Pusat dari OpenStreetMap, diperiksa 7 Oktober 2026.
+// Aset dan teknisi adalah data workshop; titik ini bukan lokasi fasilitas operasional.
+// Sumber koordinat dan relation ID: docs/assets/jakarta-locations.json.
+const locations: Record<string, Position> = {
+  Gambir: { longitude: 106.8167439, latitude: -6.1711625 },
+  Menteng: { longitude: 106.8322242, latitude: -6.1950265 },
+  'Tanah Abang': { longitude: 106.8094996, latitude: -6.2052581 },
+  Senen: { longitude: 106.8432354, latitude: -6.184971 },
+  'Sawah Besar': { longitude: 106.8335798, latitude: -6.1558913 },
+  Kemayoran: { longitude: 106.8450861, latitude: -6.1648157 },
+  'Cempaka Putih': { longitude: 106.8685256, latitude: -6.1812095 },
+  'Petojo Selatan': { longitude: 106.816434, latitude: -6.1750093 },
+  'Petojo Utara': { longitude: 106.8153732, latitude: -6.1655438 },
+  'Kebon Kelapa': { longitude: 106.8247393, latitude: -6.1642923 },
+  'Pasar Baru': { longitude: 106.8334669, latitude: -6.164901 },
+  'Kebon Sirih': { longitude: 106.8311054, latitude: -6.1850822 },
+  'Kebon Kacang': { longitude: 106.8166009, latitude: -6.1902407 },
+  Cikini: { longitude: 106.8395502, latitude: -6.1913465 },
+  Kramat: { longitude: 106.845965, latitude: -6.1838194 },
+  Bungur: { longitude: 106.8482316, latitude: -6.1713909 },
+  'Cempaka Putih Barat': { longitude: 106.863096, latitude: -6.1797434 },
+};
+
 export const assets: Asset[] = [
-  ['A-101', 110.01, -7.01, 'Area Pusat', 'Panel sensor'],
-  ['A-102', 109.997, -7.014, 'Area Barat', 'Pompa'],
-  ['A-103', 110.025, -7.003, 'Area Timur', 'Panel sensor'],
-  ['A-104', 110.017, -7.025, 'Area Selatan', 'Motor'],
-  ['A-105', 110.001, -6.989, 'Area Utara', 'Pompa'],
-  ['A-106', 110.036, -7.019, 'Area Timur', 'Motor'],
-  ['A-107', 109.979, -7.004, 'Area Barat', 'Panel sensor'],
-].map(([id, longitude, latitude, area, type]) => ({
-  id: String(id),
+  ['A-101', 'Gambir', 'Panel sensor'],
+  ['A-102', 'Menteng', 'Pompa'],
+  ['A-103', 'Tanah Abang', 'Panel sensor'],
+  ['A-104', 'Senen', 'Motor'],
+  ['A-105', 'Sawah Besar', 'Pompa'],
+  ['A-106', 'Kemayoran', 'Motor'],
+  ['A-107', 'Cempaka Putih', 'Panel sensor'],
+].map(([id, area, type]) => ({
+  id,
   name: `Aset ${id}`,
-  longitude: Number(longitude),
-  latitude: Number(latitude),
-  area: String(area),
-  type: String(type),
+  ...locations[area],
+  area,
+  type,
 }));
+
 export const technicians: Technician[] = [
-  [110.006, -7.008],
-  [110.013, -7.006],
-  [109.996, -7.012],
-  [110.025, -7.016],
-  [110.009, -6.987],
-  [109.981, -7.021],
-  [110.04, -7.004],
-  [110.012, -7.037],
-  [109.977, -6.991],
-  [110.043, -7.032],
-].map(([longitude, latitude], i) => ({
+  'Petojo Selatan',
+  'Petojo Utara',
+  'Kebon Kelapa',
+  'Pasar Baru',
+  'Kebon Sirih',
+  'Kebon Kacang',
+  'Cikini',
+  'Kramat',
+  'Bungur',
+  'Cempaka Putih Barat',
+].map((area, i) => ({
   id: `T-${String(i + 1).padStart(2, '0')}`,
   name: `Teknisi T-${String(i + 1).padStart(2, '0')}`,
-  longitude,
-  latitude,
-  area: i % 2 ? 'Area Pusat' : 'Area Barat',
+  ...locations[area],
+  area,
   skills: i % 3 ? ['Sensor', 'Kelistrikan'] : ['Mekanik', 'Pompa'],
   status: i === 3 || i === 7 ? 'busy' : 'available',
   positionSource: 'preview',

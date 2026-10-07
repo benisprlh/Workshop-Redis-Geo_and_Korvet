@@ -8,7 +8,7 @@ Panduan untuk instruktur dan pengembang. Peserta cukup mengikuti [workshop](work
 | ------------------------------------------- | ---------------------------------------------------------------------- |
 | `apps/api/src/http/`                        | Routing, SSE, error response dan panduan HTML                          |
 | `apps/api/src/infrastructure/`              | Konfigurasi, client Redis/KafkaJS dan observasi stream                 |
-| `apps/api/src/operations/`                  | State konsol, metadata simulasi, simulator dan lifecycle               |
+| `apps/api/src/operations/`                  | State konsol, contoh wilayah Jakarta Pusat, simulator dan lifecycle    |
 | `apps/api/src/workshop/`                    | Kontrak/parser latihan, hints dan validator perilaku                   |
 | `apps/api/src/labs/`                        | Empat fungsi peserta; path tetap selama workshop                       |
 | `apps/web/src/app/`                         | Navigasi, shell dan koneksi SSE                                        |
@@ -133,18 +133,22 @@ Pemeriksaan peserta melalui UI atau `exec api npm run lab:validate`. Exit code 1
 
 Pengujian awal 6 Oktober 2026 menggunakan Redis 8.2.3, Korvet v0.19.0 dan Linux ARM64 tanpa emulasi. Setelah perapian 7 Oktober, struktur baru diperiksa ulang melalui build/typecheck, unit, integrasi solusi, watcher dan browser pada 1440×900/1366×768 serta 768×1024. Kasus yang diperiksa: radius kosong, koordinat buruk, perpindahan teknisi, ketiga skenario simulator, threshold, eventId/storage, deduplikasi, restart, kegagalan implementasi dan gangguan layanan.
 
+Pembaruan peta pada 7 Oktober diuji ulang melalui build/typecheck, unit starter, integrasi solusi dan browser pada tiga ukuran tersebut. Tile OpenStreetMap nyata berhasil dimuat. Radius 1 km dari Gambir menghasilkan dua teknisi dan 3 km menghasilkan enam; perpindahan posisi mengubah hasil. Tile yang sengaja diputus beralih ke grid berlabel, lalu **Muat ulang peta** memulihkan basemap. Klik titik, marker, tombol area, dan attribution turut diperiksa. Screenshot di `docs/assets/` diambil dari aplikasi yang berjalan setelah review visual.
+
+Peta menggunakan tile OpenStreetMap sebagai tampilan awal; zoom dan klik titik bekerja pada koordinat geografis Indonesia. Dataset awal berada di `apps/api/src/operations/fixtures.ts`; sumber 17 wilayah dan koordinatnya dicatat di [data lokasi](assets/jakarta-locations.json). Wilayah teknisi adalah area tugas awal; form memperbarui koordinat tanpa melakukan reverse geocoding. Posisi yang sudah disimpan peserta tetap dipakai. Jika ingin seluruh posisi kembali ke dataset awal, gunakan reset data lab sesuai prosedur di atas.
+
 Runtime AMD64/emulasi serta endpoint eksternal TLS/SASL belum diuji. Manifest image menyediakan ARM64 dan AMD64. Rincian release, commit dan keterbatasan format storage ada di [referensi](references.md).
 
 ## Troubleshooting
 
-| Gejala                             | Pemeriksaan                                                                    |
-| ---------------------------------- | ------------------------------------------------------------------------------ |
-| `docker: command not found`        | Jalankan helper sebagai user biasa; Docker di workspace ini berada dalam VM    |
-| Perubahan belum tampil             | Labs: tunggu watcher lalu validasi. Frontend: `up -d --build`, refresh browser |
-| Bootstrap berhasil lalu timeout    | Cocokkan advertised host/port dengan jaringan client                           |
-| Korvet gagal JSON.SET              | Pastikan Redis menyediakan JSON                                                |
-| Send berhasil, grafik kosong       | Periksa KORVET-02 dan consumer; ack producer tidak mengisi grafik              |
-| Storage kosong                     | Cocokkan Redis, namespace, topic, partition, dan compression none              |
-| Replay event                       | Group/offset dapat membaca ulang; eventId dideduplikasi dalam sesi             |
-| API tetap hidup saat layanan putus | Pulihkan layanan, periksa status infrastruktur, lalu validasi kembali          |
-| Tile peta gagal                    | Skema lokal tetap dapat digunakan                                              |
+| Gejala                             | Pemeriksaan                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `docker: command not found`        | Jalankan helper sebagai user biasa; Docker di workspace ini berada dalam VM                       |
+| Perubahan belum tampil             | Labs: tunggu watcher lalu validasi. Frontend: `up -d --build`, refresh browser                    |
+| Bootstrap berhasil lalu timeout    | Cocokkan advertised host/port dengan jaringan client                                              |
+| Korvet gagal JSON.SET              | Pastikan Redis menyediakan JSON                                                                   |
+| Send berhasil, grafik kosong       | Periksa KORVET-02 dan consumer; ack producer tidak mengisi grafik                                 |
+| Storage kosong                     | Cocokkan Redis, namespace, topic, partition, dan compression none                                 |
+| Replay event                       | Group/offset dapat membaca ulang; eventId dideduplikasi dalam sesi                                |
+| API tetap hidup saat layanan putus | Pulihkan layanan, periksa status infrastruktur, lalu validasi kembali                             |
+| Tile peta gagal                    | Grid koordinat dan marker tetap dapat digunakan; tekan **Muat ulang peta** setelah internet pulih |

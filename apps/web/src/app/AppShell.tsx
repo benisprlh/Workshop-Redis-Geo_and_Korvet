@@ -92,7 +92,7 @@ export function AppShell({
         </header>
         <main className="content">{children}</main>
         <footer className="app-footer">
-          <span>Seluruh posisi dan sensor adalah simulasi</span>
+          <span>Wilayah nyata Indonesia · aset, teknisi & sensor workshop</span>
           <span>
             {state?.assets.length || 0} aset · {state?.technicians.length || 0} teknisi
           </span>
