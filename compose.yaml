@@ -1,0 +1,70 @@
+name: fieldops-${LAB_ID:-fieldops-demo}
+services:
+  redis:
+    image: redis:8.2.3-alpine
+    command: ['redis-server', '--appendonly', 'yes']
+    ports: ['127.0.0.1:6379:6379']
+    volumes: ['redis-data:/data']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 2s
+      retries: 15
+  korvet:
+    image: redisfield/korvet:v0.19.0@sha256:c5e2a419ddb1dcb4404b20e7230ecd4804cfdbbff71fafe151c043842389015a
+    command: server
+    ports: ['127.0.0.1:9092:9092']
+    environment:
+      KORVET_REDIS_URI: ${REDIS_URL:-redis://redis:6379}
+      KORVET_NAMESPACE: ${KORVET_NAMESPACE:-korvet}
+      KORVET_BROKER_ADVERTISED_HOST: korvet
+      KORVET_TOPICS_0_NAME: '*'
+      KORVET_TOPICS_0_AUTO_CREATE: 'true'
+      KORVET_TOPICS_0_PARTITIONS: '1'
+      KORVET_STORAGE_LOCAL_COMPRESSION_CODEC: none
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://localhost:8080/actuator/health']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 20s
+  api:
+    image: fieldops-api:1.0.0
+    build: { context: ., dockerfile: infra/docker/api.Dockerfile }
+    init: true
+    environment:
+      LAB_ID: ${LAB_ID:-fieldops-demo}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      KAFKA_BROKERS: ${KAFKA_BROKERS:-korvet:9092}
+      TELEMETRY_TOPIC: ${TELEMETRY_TOPIC:-}
+      KAFKA_GROUP_ID: ${KAFKA_GROUP_ID:-}
+      KORVET_NAMESPACE: ${KORVET_NAMESPACE:-korvet}
+      KAFKA_SSL: ${KAFKA_SSL:-false}
+      KAFKA_USERNAME: ${KAFKA_USERNAME:-}
+      KAFKA_PASSWORD: ${KAFKA_PASSWORD:-}
+      API_PORT: '3001'
+    ports: ['127.0.0.1:${API_PORT:-3001}:3001']
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./.workshop-backups:/app/.workshop-backups
+    depends_on: { korvet: { condition: service_healthy } }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:3001/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 15
+  web:
+    image: fieldops-web:1.0.0
+    build: { context: ., dockerfile: infra/docker/web.Dockerfile }
+    ports: ['127.0.0.1:${WEB_PORT:-8088}:80']
+    depends_on: { api: { condition: service_healthy } }
+volumes:
+  redis-data:

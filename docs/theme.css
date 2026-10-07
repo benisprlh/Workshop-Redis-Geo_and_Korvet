@@ -1,0 +1,140 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f5f6f8;
+  color: #1f2937;
+  font:
+    14px/1.7 -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Arial,
+    sans-serif;
+}
+header {
+  border-bottom: 1px solid #e4e8ee;
+  background: #fff;
+}
+header div {
+  max-width: 860px;
+  margin: auto;
+  padding: 16px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+header strong {
+  font-size: 17px;
+}
+main {
+  max-width: 860px;
+  margin: 24px auto 64px;
+  padding: 32px;
+  background: white;
+  border: 1px solid #e4e8ee;
+  border-radius: 7px;
+}
+h1 {
+  font-size: 27px;
+  margin: 0 0 12px;
+}
+h2 {
+  font-size: 20px;
+  margin-top: 36px;
+  border-top: 1px solid #e4e8ee;
+  padding-top: 24px;
+}
+h3 {
+  font-size: 16px;
+}
+h1,
+h2,
+h3 {
+  line-height: 1.4;
+  scroll-margin-top: 20px;
+}
+a {
+  color: #2563eb;
+}
+p {
+  margin: 12px 0;
+}
+code,
+pre {
+  font:
+    12px/1.7 'SFMono-Regular',
+    Consolas,
+    monospace;
+}
+code {
+  background: #f1f4f8;
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+pre {
+  background: #f5f7fa;
+  padding: 16px;
+  overflow: auto;
+  border: 1px solid #e4e8ee;
+  border-radius: 5px;
+}
+pre code {
+  padding: 0;
+  background: transparent;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th,
+td {
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid #e4e8ee;
+  padding: 10px;
+  overflow-wrap: anywhere;
+}
+th {
+  background: #f8fafc;
+}
+details {
+  border: 1px solid #e4e8ee;
+  border-radius: 5px;
+  padding: 10px 14px;
+  margin: 10px 0;
+}
+summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+img {
+  max-width: 100%;
+}
+blockquote {
+  margin: 16px 0;
+  padding: 0 16px;
+  border-left: 3px solid #cbd5e1;
+  color: #64748b;
+}
+@media (max-width: 700px) {
+  main {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+    padding: 20px;
+  }
+  table {
+    display: block;
+    overflow: auto;
+  }
+  header div {
+    padding: 14px 20px;
+  }
+}
+a:focus-visible,
+summary:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 3px;
+}

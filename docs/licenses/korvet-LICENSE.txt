@@ -1,0 +1,39 @@
+Korvet — Commercial Software License Notice
+
+Copyright (c) Redis Ltd. All rights reserved.
+
+Korvet is a commercial product of Redis Ltd. ("Redis"). This repository
+(korvet-dist) contains documentation, configuration samples, and example
+integrations to help you evaluate and operate Korvet. It does not contain the
+Korvet source code.
+
+The Korvet application and libraries (the "Software"), including any binaries or
+container images referenced by this repository, are licensed, not sold.
+
+Evaluation use
+--------------
+Redis grants you a limited, non-exclusive, non-transferable right to use the
+Software solely for internal evaluation and testing purposes.
+
+Production use
+--------------
+Production use of the Software requires a commercial license from Redis. To
+obtain a commercial license, contact Redis (https://redis.io/) or your Redis
+account representative.
+
+Documentation and samples
+--------------------------
+The documentation, configuration files, and sample code contained in this
+repository are provided by Redis for use in connection with a licensed Korvet
+deployment, and may not be used to develop, provide, or support a competing
+product or service.
+
+Disclaimer
+----------
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, THE SOFTWARE, DOCUMENTATION, AND
+SAMPLES ARE PROVIDED ON AN "AS IS" BASIS. REDIS DISCLAIMS ALL WARRANTIES AND
+CONDITIONS, EXPRESS OR IMPLIED, INCLUDING (WITHOUT LIMITATION) WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, NON-INFRINGEMENT, AND TITLE.
+
+This notice is an interim licensing statement and may be superseded by a formal
+license agreement from Redis Ltd.

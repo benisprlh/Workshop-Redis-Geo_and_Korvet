@@ -1,0 +1,293 @@
+.drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: #19243540;
+  display: flex;
+  justify-content: flex-end;
+}
+.workshop-drawer {
+  width: 480px;
+  max-width: 100%;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  box-shadow: -8px 0 24px #182a4610;
+}
+.drawer-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer-heading h2 {
+  font-size: 19px;
+}
+.drawer-heading p {
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.drawer-content {
+  padding: 20px 24px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+.workshop-progress {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.workshop-progress strong {
+  font-size: 13px;
+}
+.workshop-progress > span {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 11px;
+}
+.workshop-progress > div {
+  width: 100%;
+  display: flex;
+  gap: 4px;
+}
+.workshop-progress i {
+  height: 3px;
+  flex: 1;
+  background: #e7ecf2;
+}
+.workshop-progress i.done {
+  background: var(--blue);
+}
+.exercise-list {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 22px;
+}
+.exercise-row {
+  width: 100%;
+  background: white;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  text-align: left;
+  color: var(--text);
+}
+.exercise-row:last-child {
+  border-bottom: 0;
+}
+.exercise-row:hover {
+  background: #f8fafc;
+}
+.exercise-row.active {
+  background: var(--blue-soft);
+  box-shadow: inset 3px 0 var(--blue);
+}
+.exercise-check {
+  color: #98a5b5;
+  display: flex;
+}
+.exercise-check.done {
+  color: var(--green);
+}
+.exercise-row-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.exercise-row-label > span {
+  flex: 0 0 62px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+.exercise-row-label > strong {
+  font-size: 12px;
+  font-weight: 500;
+}
+.exercise-row-status {
+  color: var(--muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+.exercise-row-status.done {
+  color: var(--green);
+}
+.exercise-detail-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.exercise-detail-heading h3 {
+  font-size: 14px;
+}
+.exercise-path {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: #f6f8fb;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  margin: 12px 0;
+  padding: 4px 6px 4px 10px;
+}
+.exercise-path code {
+  color: #475569;
+  overflow-wrap: anywhere;
+}
+.exercise-contract {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 6px 10px;
+  font-size: 11px;
+  margin: 0 0 12px;
+}
+.exercise-contract dt {
+  color: var(--muted);
+}
+.exercise-contract dd {
+  margin: 0;
+  color: #475569;
+}
+.exercise-message {
+  color: var(--muted);
+  font-size: 11px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.exercise-message.warning {
+  color: var(--amber);
+}
+.exercise-message small {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+  font-size: 10px;
+}
+.hint-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--line);
+  margin-top: 4px;
+}
+.hint-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 9px 12px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+}
+.hint-tabs button.active {
+  color: var(--blue);
+  border-color: var(--blue);
+}
+.hint-content {
+  padding: 14px 0;
+  min-height: 112px;
+}
+.hint-content > span {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+  margin-bottom: 6px;
+}
+.hint-content p {
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.hint-content pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  background: #f6f8fb;
+  border-radius: 5px;
+  font-size: 11px;
+  margin: 0;
+  color: #475569;
+}
+.workshop-tools {
+  margin-top: 22px;
+  border-top: 1px solid var(--line);
+}
+.workshop-tools summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 14px 0;
+  cursor: pointer;
+}
+.workshop-tools summary::marker {
+  content: '';
+}
+.workshop-tools summary > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+}
+.workshop-tools-body > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.workshop-tools dl {
+  display: grid;
+  grid-template-columns: 125px 1fr;
+  gap: 8px;
+  font-size: 11px;
+  margin: 14px 0;
+}
+.workshop-tools dt {
+  color: var(--muted);
+}
+.workshop-tools dd {
+  margin: 0;
+  font-family: 'SFMono-Regular', Consolas, monospace;
+  overflow-wrap: anywhere;
+}
+.workshop-tools .button {
+  margin-top: 8px;
+}
+.drawer-footer {
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+.drawer-footer > p {
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.drawer-footer .inline-error {
+  color: var(--red);
+}
+@keyframes rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: rotate 1s linear infinite;
+}

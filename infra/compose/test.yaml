@@ -1,0 +1,10 @@
+# Instance infrastruktur khusus pengujian host; tidak mengubah broker lab utama.
+services:
+  redis:
+    ports: !override ['127.0.0.1:16379:6379']
+  korvet:
+    ports: !override ['127.0.0.1:19092:9092']
+    environment:
+      KORVET_REDIS_URI: redis://redis:6379
+      KORVET_BROKER_ADVERTISED_HOST: localhost
+      KORVET_BROKER_ADVERTISED_PORT: '19092'

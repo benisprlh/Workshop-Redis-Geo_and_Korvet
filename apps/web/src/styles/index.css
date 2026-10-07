@@ -1,0 +1,9 @@
+@import './tokens.css';
+@import './base.css';
+@import './components.css';
+@import './layout.css';
+@import '../features/overview/overview.css';
+@import '../features/assignment/assignment.css';
+@import '../features/monitoring/monitoring.css';
+@import '../features/workshop/workshop.css';
+@import './responsive.css';

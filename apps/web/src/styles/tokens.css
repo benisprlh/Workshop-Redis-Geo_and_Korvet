@@ -1,0 +1,22 @@
+:root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+  color: #1f2937;
+  background: #f5f6f8;
+  font-size: 13px;
+  line-height: 1.5;
+  --background: #f5f6f8;
+  --surface: #fff;
+  --text: #1f2937;
+  --muted: #64748b;
+  --line: #e4e8ee;
+  --blue: #2563eb;
+  --blue-soft: #eff5ff;
+  --green: #23794d;
+  --amber: #946216;
+  --red: #b4232d;
+  --radius: 7px;
+  --sidebar: 234px;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}

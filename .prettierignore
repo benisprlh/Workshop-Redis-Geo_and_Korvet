@@ -1,0 +1,8 @@
+node_modules
+**/dist
+.workshop-backups
+test-results
+docs/assets
+docs/licenses
+package-lock.json
+*.sh

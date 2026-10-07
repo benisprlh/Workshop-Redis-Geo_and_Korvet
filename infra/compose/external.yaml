@@ -1,0 +1,4 @@
+# Hanya API dan web menggunakan endpoint instruktur dari .env.
+services:
+  api:
+    depends_on: !reset {}

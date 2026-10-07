@@ -1,0 +1,5 @@
+# Infrastruktur Compose + backend pada host. Jalankan tanpa service api/web.
+services:
+  korvet:
+    environment:
+      KORVET_BROKER_ADVERTISED_HOST: localhost

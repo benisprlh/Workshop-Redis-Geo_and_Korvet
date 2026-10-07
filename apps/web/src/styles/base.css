@@ -1,0 +1,108 @@
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+select {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+a {
+  color: var(--blue);
+  text-decoration: none;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+input,
+select {
+  min-width: 0;
+  background: white;
+  color: var(--text);
+  border: 1px solid #cfd7e1;
+  border-radius: 5px;
+  height: 36px;
+  padding: 0 10px;
+}
+select {
+  padding-right: 24px;
+}
+input::placeholder {
+  color: #8190a4;
+}
+input:focus,
+select:focus {
+  border-color: var(--blue);
+}
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+h1 {
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.6px;
+  line-height: 1.3;
+}
+h2 {
+  font-size: 15px;
+  font-weight: 600;
+}
+h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+strong,
+b {
+  font-weight: 600;
+}
+svg {
+  flex-shrink: 0;
+}
+.mono,
+code,
+pre {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 11px;
+}
+.numeric,
+.tabular,
+.distance,
+.chart-value,
+.coordinate-readout,
+time {
+  font-variant-numeric: tabular-nums;
+}
+.numeric {
+  text-align: right;
+}
+.muted {
+  color: var(--muted);
+}
+
+pre {
+  padding: 14px;
+  background: #f7f9fc;
+  border-radius: 5px;
+  color: #64748b;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  margin: 0 0 12px;
+  line-height: 1.7;
+}

@@ -1,0 +1,39 @@
+{
+  "name": "fieldops",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": "22.22.0",
+    "npm": "10.9.4"
+  },
+  "packageManager": "npm@10.9.4",
+  "scripts": {
+    "dev": "concurrently -k -n api,web \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
+    "test": "tsx --test tests/unit/*.test.ts",
+    "test:integration": "node tests/integration/solutions.mjs",
+    "test:browser": "node tests/browser/review.mjs",
+    "test:outages": "node tests/integration/outages.mjs --local-test-instance",
+    "test:watcher": "node tests/integration/watcher.mjs",
+    "solution:apply": "node scripts/labs/files.mjs apply",
+    "lab:reset": "node scripts/labs/files.mjs reset",
+    "data:reset": "tsx scripts/labs/reset-data.ts",
+    "lab:validate": "node scripts/labs/validate.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "@types/node": "22.18.6",
+    "concurrently": "9.2.1",
+    "prettier": "3.6.2",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

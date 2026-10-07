@@ -1,0 +1,255 @@
+@media (min-width: 1550px) {
+  .geo-layout {
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+  .leaflet-container.field-map {
+    height: 640px;
+  }
+}
+@media (max-width: 1280px) {
+  :root {
+    --sidebar: 220px;
+  }
+  .overview-columns {
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 16px;
+  }
+  .content {
+    padding: 20px;
+  }
+  tbody td,
+  thead th {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .monitor-main {
+    grid-template-columns: minmax(0, 1fr) 250px;
+    gap: 16px;
+  }
+  .simulator-control > span {
+    display: none;
+  }
+  .geo-layout {
+    grid-template-columns: minmax(0, 1fr) 312px;
+    gap: 16px;
+  }
+  .map-legend small {
+    display: none;
+  }
+}
+@media (max-width: 1100px) {
+  .overview-columns {
+    grid-template-columns: 1fr;
+  }
+  .overview-aside {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .geo-layout {
+    grid-template-columns: 1fr;
+  }
+  .leaflet-container.field-map {
+    height: 420px;
+  }
+  .assignment-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .assignment-panel > .section-heading {
+    grid-column: 1 / -1;
+  }
+  .technician-detail {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+  .monitor-main {
+    grid-template-columns: 1fr;
+  }
+  .alarms-panel {
+    min-height: auto;
+  }
+  .alarm-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 20px;
+    max-height: 210px;
+  }
+  .alarms-panel .empty {
+    padding: 20px;
+  }
+  .monitor-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .monitor-toolbar > .field {
+    max-width: none;
+  }
+  .simulator-control {
+    margin-left: 0;
+  }
+  .header-actions {
+    gap: 12px;
+  }
+  .breadcrumbs {
+    font-size: 11px;
+    gap: 8px;
+  }
+}
+@media (max-width: 800px) {
+  .sidebar {
+    display: none;
+  }
+  .sidebar.mobile-open {
+    display: flex;
+    box-shadow: 8px 0 30px #24324c24;
+  }
+  .main-shell {
+    margin-left: 0;
+  }
+  .mobile-menu {
+    display: inline-flex;
+  }
+  .app-header {
+    padding: 0 16px;
+    gap: 10px;
+  }
+  .breadcrumbs {
+    margin-right: auto;
+  }
+  .breadcrumbs > strong,
+  .breadcrumbs > span {
+    display: none;
+  }
+  .header-actions .live-indicator {
+    display: none;
+  }
+  .content {
+    padding: 20px 16px;
+  }
+  .page-heading {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .page-heading h1 {
+    font-size: 22px;
+  }
+  .page-heading > .button {
+    font-size: 11px;
+  }
+  .operation-strip > div {
+    padding: 0 12px;
+  }
+  .operation-strip strong {
+    font-size: 22px;
+    gap: 5px;
+  }
+  .operation-strip small {
+    font-size: 10px;
+  }
+  .operation-strip > div > span {
+    font-size: 11px;
+  }
+  .journey-panel {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .journey-stages {
+    gap: 12px;
+  }
+  .journey-stages > div {
+    gap: 6px;
+  }
+  .stage-arrow {
+    display: none;
+  }
+  .connection-strip {
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .last-update {
+    margin-left: 0;
+  }
+  .app-footer {
+    padding: 16px;
+  }
+}
+@media (max-width: 520px) {
+  .page-heading {
+    flex-wrap: wrap;
+  }
+  .operation-strip {
+    flex-wrap: wrap;
+    padding: 12px 0;
+    row-gap: 16px;
+  }
+  .operation-strip > div {
+    flex-basis: 50%;
+  }
+  .operation-strip > div:nth-child(2) {
+    border-right: 0;
+  }
+  .overview-aside {
+    grid-template-columns: 1fr;
+  }
+  .table-toolbar {
+    flex-wrap: wrap;
+  }
+  .table-footer span {
+    display: none;
+  }
+  .assignment-panel {
+    display: block;
+  }
+  .technician-detail {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+  .leaflet-container.field-map {
+    height: 360px;
+  }
+  .map-legend {
+    gap: 12px;
+    padding: 12px;
+    flex-wrap: wrap;
+  }
+  .map-tools {
+    gap: 8px;
+  }
+  .monitor-toolbar > .field {
+    flex-basis: 100%;
+  }
+  .simulator-control {
+    width: 100%;
+  }
+  .simulator-control .button {
+    width: 100%;
+  }
+  .alarm-list {
+    grid-template-columns: 1fr;
+  }
+  .journey-stages strong {
+    font-size: 10px;
+  }
+  .journey-stages small {
+    font-size: 9px;
+  }
+  .stage {
+    width: 20px;
+    height: 20px;
+  }
+  .chart-panel {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+  .drawer-heading,
+  .drawer-content {
+    padding: 20px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
