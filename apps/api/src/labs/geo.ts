@@ -13,11 +13,8 @@ export async function saveTechnicianPosition(
   technicianId: string,
   position: Coordinates,
 ): Promise<void> {
-  await redis.geoAdd(key, {
-    longitude: position.longitude,
-    latitude: position.latitude,
-    member: technicianId,
-  });
+  // Isi sekitar 3–5 baris: GEOADD key, longitude, latitude, technicianId.
+  throw new WorkshopTodoError('GEO-01');
 }
 
 /** GEO-02: Redis menghitung jarak geografis; ASC mengurutkan dari yang terdekat. */
@@ -27,13 +24,7 @@ export async function findNearbyTechnicians(
   center: Coordinates,
   radiusKm: number,
 ): Promise<GeoHit[]> {
-  // Opsi dikelompokkan sesuai urutan command Redis agar mudah diikuti peserta.
-  // prettier-ignore
-  const reply = await redis.sendCommand([
-    'GEOSEARCH', key,
-    'FROMLONLAT', String(center.longitude), String(center.latitude),
-    'BYRADIUS', String(radiusKm), 'km',
-    'ASC', 'WITHDIST', 'WITHCOORD',
-  ]);
-  return parseGeoReply(reply);
+  // Isi sekitar 5–10 baris: GEOSEARCH FROMLONLAT, BYRADIUS km, ASC, WITHDIST, WITHCOORD.
+  // parseGeoReply(reply) sudah disediakan untuk mengubah jawaban Redis menjadi GeoHit[].
+  throw new WorkshopTodoError('GEO-02');
 }

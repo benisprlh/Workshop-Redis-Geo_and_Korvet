@@ -6,29 +6,23 @@ import {
   WorkshopTodoError,
 } from '../workshop/support.js';
 
-/** KORVET-01: KafkaJS mengirim ke Korvet; Korvet sendiri menulis Redis Streams. */
+/** KORVET-01: Kirim satu JSON event melalui KafkaJS ke topic Korvet, key = assetId. */
 export async function publishTelemetry(
   producer: Producer,
   topic: string,
   event: TelemetryEvent,
 ): Promise<void> {
-  await producer.send({
-    topic,
-    messages: [{ key: event.assetId, value: JSON.stringify(event) }],
-  });
+  // Isi sekitar 3 baris: producer.send dengan topic, key event.assetId, JSON.stringify(event).
+  throw new WorkshopTodoError('KORVET-01');
 }
 
-/** KORVET-02: run menyalakan loop consumer; callback hanya dipanggil setelah fetch Korvet. */
+/** KORVET-02: Subscribe dan jalankan satu consumer; teruskan event valid ke callback scaffold. */
 export async function consumeTelemetry(
   consumer: Consumer,
   topic: string,
   onEvent: TelemetryHandler,
 ): Promise<void> {
-  await consumer.subscribe({ topic, fromBeginning: true });
-  await consumer.run({
-    eachMessage: async ({ message }) => {
-      const event = parseTelemetry(message.value);
-      if (event) await onEvent(event);
-    },
-  });
+  // Isi sekitar 8 baris: subscribe({ topic, fromBeginning: true }), lalu run({ eachMessage }).
+  // eachMessage menerima message; parseTelemetry(message.value), lalu await onEvent(event) jika valid.
+  throw new WorkshopTodoError('KORVET-02');
 }
