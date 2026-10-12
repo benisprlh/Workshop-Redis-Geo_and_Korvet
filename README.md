@@ -1,6 +1,6 @@
 # FieldOps
 
-Workshop Redis untuk penugasan teknisi dan monitoring aset. Durasi 60–90 menit; peserta mengisi empat fungsi pada dua file TypeScript. Peta dan contoh wilayah memakai lokasi nyata di Jakarta Pusat; aset, teknisi, dan sensor adalah data workshop.
+Workshop Redis untuk penugasan teknisi dan monitoring aset. Durasi 60–90 menit. Peserta terlebih dahulu menghubungkan backend ke Redis melalui `.env`, lalu mengisi empat fungsi pada dua file TypeScript. Peta dan contoh wilayah memakai lokasi nyata di Jakarta Pusat; aset, teknisi, dan sensor adalah data workshop.
 
 ![Konsol FieldOps](docs/assets/overview.png)
 
@@ -8,7 +8,19 @@ Tampilan aktual: [penugasan](docs/assets/assignment-solution.png) · [monitoring
 
 ## Menjalankan
 
-Prasyarat: Docker Compose ≥2.24.4, browser, dan editor kode.
+Prasyarat: Docker Compose ≥2.24.4, browser, editor kode, dan endpoint database Redis Enterprise dari instruktur.
+
+**Workshop Redis Enterprise:** salin template, isi `REDIS_URL` beserta kredensial/TLS sesuai instruktur, lalu mulai Korvet/API/web:
+
+```bash
+cp .env.enterprise.example .env
+# Edit .env sebelum menjalankan layanan.
+docker compose -f compose.yaml -f infra/compose/enterprise.yaml up -d --build redis-link korvet api web
+```
+
+Korvet memakai Redis Enterprise yang sama dengan API; mode ini tidak memulai Redis lokal. Sertifikat CA privat/mutual TLS dan penghubung Redis untuk Korvet dijelaskan pada [panduan pengelolaan](docs/operations.md#redis-enterprise).
+
+**Percobaan lokal:** gunakan Redis dalam Compose jika endpoint instruktur belum tersedia:
 
 ```bash
 cp .env.example .env
@@ -23,6 +35,8 @@ Buka **http://localhost:8088**. Pada workspace ini Docker berjalan di VM Lima mi
 
 Helper juga menerima perintah `ps`, `logs`, `exec`, dan `down`. Perubahan frontend/Dockerfile membutuhkan build ulang; perubahan dua file latihan langsung dibaca watcher backend.
 
+Setelah mengubah `.env`, jalankan kembali `up -d` dengan file Compose/mode yang sama agar konfigurasi container diperbarui. Restart backend mengharuskan pemeriksaan koneksi kembali.
+
 ## Mulai workshop
 
 | File peserta                  | Latihan               | Hasil                                             |
@@ -30,7 +44,9 @@ Helper juga menerima perintah `ps`, `logs`, `exec`, dan `down`. Perubahan fronte
 | `apps/api/src/labs/geo.ts`    | GEO-01 · GEO-02       | Simpan posisi, lalu cari teknisi dalam radius     |
 | `apps/api/src/labs/korvet.ts` | KORVET-01 · KORVET-02 | Kirim event ke Korvet, lalu konsumsi ke dashboard |
 
-Buka **Mode workshop**, pilih latihan, dan ikuti petunjuk. Setelah menyimpan kode, tekan **Periksa latihan**. Starter memakai stub valid; fitur terbuka setelah fungsi lulus pemeriksaan terhadap Redis/Korvet nyata.
+Urutan peserta: **Koneksi Redis → GEO-01 → GEO-02 → KORVET-01 → KORVET-02**. Buka **Mode workshop**, mulai dari **Koneksi Redis**, lalu tekan **Periksa koneksi Redis**. Pemeriksaan menguji PING, dua nilai baca/tulis, dan cleanup key sementara milik lab. Koneksi belum lulus berarti validasi latihan masih terkunci.
+
+Setelah koneksi terverifikasi, pilih latihan dan ikuti petunjuk. Setelah menyimpan kode dan watcher restart, periksa koneksi kembali lalu tekan **Periksa latihan**. Starter memakai stub valid; empat fitur tetap terbuka berdasarkan pemeriksaan perilaku fungsi terhadap Redis/Korvet nyata.
 
 ## Struktur project
 

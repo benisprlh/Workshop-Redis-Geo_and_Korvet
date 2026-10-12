@@ -29,9 +29,13 @@ export default function AssignmentPage({
     setLatitude(String(selected.latitude));
   }, [selectedId, selected.longitude, selected.latitude]);
   useEffect(() => setSuccess(''), [selectedId]);
-  const saveUnlocked = s.exercises.find((e) => e.id === 'GEO-01')?.status === 'passed';
+  const connectionReady = s.redisConnection.status === 'passed' && s.infra.redis;
+  const saveUnlocked =
+    connectionReady && s.exercises.find((e) => e.id === 'GEO-01')?.status === 'passed';
   const searchUnlocked =
-    s.exercises.find((e) => e.id === 'GEO-02')?.status === 'passed' && s.positionsReady;
+    connectionReady &&
+    s.exercises.find((e) => e.id === 'GEO-02')?.status === 'passed' &&
+    s.positionsReady;
   function choose(id: string) {
     const asset = s.assets.find((a) => a.id === id);
     if (asset) {

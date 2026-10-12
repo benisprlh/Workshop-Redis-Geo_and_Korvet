@@ -89,6 +89,17 @@ async function validate() {
   );
   return state;
 }
+async function prepareConnection() {
+  await wait(async () => (await api('/state')).infra.redis, 40);
+  const state = await api('/workshop/redis/check', 'POST', {});
+  assert.equal(state.redisConnection.status, 'passed', state.redisConnection.message);
+  assert.deepEqual(state.redisConnection.checks, { ping: true, writeRead: true, cleanup: true });
+  await wait(
+    async () => (await api('/state')).infra.producer,
+    45,
+    'Korvet tidak tersambung setelah persiapan Redis.',
+  );
+}
 async function screenshot(page, name) {
   if (await page.locator('.map-wrap').count()) {
     await page.waitForFunction(() => {
@@ -114,11 +125,12 @@ async function screenshot(page, name) {
 }
 try {
   start();
-  await wait(
-    async () => (await api('/state')).infra.producer,
-    45,
-    'Korvet producer tidak tersambung. Periksa advertised host dan Redis JSON.',
-  );
+  await wait(async () => (await api('/state')).infra.redis, 40);
+  assert.equal((await api('/state')).redisConnection.status, 'unchecked');
+  const beforeConnection = await api('/workshop/validate', 'POST', {});
+  assert.ok(beforeConnection.exercises.every((e) => e.status === 'dependency'));
+  assert.equal(beforeConnection.infra.producer, false);
+  await prepareConnection();
   await validate();
   let state = await api('/state');
   assert.equal(state.positionsReady, true);
@@ -295,7 +307,7 @@ try {
   browser = undefined;
   await stop();
   start();
-  await wait(async () => (await api('/state')).infra.producer, 40);
+  await prepareConnection();
   await validate();
   const finalEvent = { ...event, eventId: randomUUID(), timestamp: new Date().toISOString() };
   await api('/telemetry', 'POST', finalEvent);
@@ -318,7 +330,7 @@ try {
   );
   await writeFile(korvetFile, korvetSolution.replace('key: event.assetId', "key: 'A-101'"));
   start();
-  await wait(async () => (await api('/state')).infra.producer, 40);
+  await prepareConnection();
   const incorrect = await api('/workshop/validate', 'POST', {});
   assert.equal(incorrect.exercises.find((e) => e.id === 'GEO-01').status, 'incorrect');
   assert.equal(incorrect.exercises.find((e) => e.id === 'GEO-02').status, 'dependency');
@@ -332,7 +344,7 @@ try {
     korvetSolution.replace('await consumer.run({', 'return; await consumer.run({'),
   );
   start();
-  await wait(async () => (await api('/state')).infra.producer, 40);
+  await prepareConnection();
   const noConsumer = await api('/workshop/validate', 'POST', {});
   assert.equal(noConsumer.exercises.find((e) => e.id === 'KORVET-02').status, 'incorrect');
   assert.equal(noConsumer.infra.consumer, false);

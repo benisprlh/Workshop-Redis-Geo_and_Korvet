@@ -1,15 +1,31 @@
 # Workshop FieldOps
 
-Dua use case, empat latihan, dua file yang diedit. Target peserta: dapat membaca JavaScript/TypeScript dasar. Koneksi, validasi, UI, simulator, dan lifecycle client telah disiapkan.
+Dua use case, satu tahap persiapan koneksi, dan empat latihan pada dua file TypeScript. Target peserta: dapat membaca JavaScript/TypeScript dasar. Peserta mengisi endpoint pada `.env`; client, validasi, UI, simulator, dan lifecycle telah disiapkan.
 
-| Tahap                         | Waktu       | Yang dicoba                                              |
-| ----------------------------- | ----------- | -------------------------------------------------------- |
-| Buka konsol dan Mode workshop | 10 menit    | Kenali marker preview dan fitur terkunci                 |
-| GEO-01 dan GEO-02             | 25 menit    | Simpan posisi, radius, urutan hasil, perpindahan teknisi |
-| KORVET-01 dan KORVET-02       | 30 menit    | Kirim, lihat storage, konsumsi, grafik dan alarm         |
-| Eksperimen dan diskusi        | 10–20 menit | Hasil kosong, replay, restart dan layanan terputus       |
+| Tahap                    | Waktu       | Yang dicoba                                               |
+| ------------------------ | ----------- | --------------------------------------------------------- |
+| Koneksi Redis dan konsol | 10–15 menit | Isi endpoint Enterprise, autentikasi/TLS, periksa koneksi |
+| GEO-01 dan GEO-02        | 25 menit    | Simpan posisi, radius, urutan hasil, perpindahan teknisi  |
+| KORVET-01 dan KORVET-02  | 30 menit    | Kirim, lihat storage, konsumsi, grafik dan alarm          |
+| Eksperimen dan diskusi   | 10–20 menit | Hasil kosong, replay, restart dan layanan terputus        |
 
 Mulai aplikasi sesuai [README](../README.md), lalu buka http://localhost:8088. **Mode workshop** menyediakan tiga tingkat petunjuk. Simpan perubahan, tunggu watcher restart, lalu tekan **Periksa latihan**; semua fitur dinilai dari perilaku fungsi yang sama dengan API.
+
+## Koneksi Redis
+
+**Dikerjakan pertama:** `.env` pada root repository. Minta instruktur menyiapkan endpoint **database** Redis Enterprise, port, username/password, serta informasi TLS. Alamat console administrasi bukan endpoint client Redis.
+
+1. Salin `.env.enterprise.example` ke `.env` untuk sesi Enterprise. Isi `LAB_ID` unik per peserta sesuai instruktur, lalu `REDIS_URL` dengan endpoint yang diberikan, misalnya `rediss://default:PASSWORD@redis-db.example.test:12000`. Contoh ini harus diganti dengan nilai instruktur.
+2. `rediss://` memakai TLS; `redis://` untuk endpoint yang memang tidak memakai TLS. Username/password pada URI perlu di-encode jika memiliki karakter khusus, misalnya `@` menjadi `%40`. Simpan URI dalam tanda kutip tunggal pada `.env`.
+3. Jika ada CA privat, letakkan sertifikat instruktur di `infra/certificates/` dan isi `REDIS_CA_FILE=/app/certs/ca.pem`. Mutual TLS juga memakai `REDIS_CLIENT_CERT_FILE` dan `REDIS_CLIENT_KEY_FILE`. Folder ini diabaikan Git dan tidak dimasukkan ke image aplikasi.
+4. Jalankan Compose dengan mode sesuai [README](../README.md). Setelah edit `.env`, jalankan kembali perintah `up -d` mode yang sama; environment container tidak berubah hanya karena file disimpan.
+5. Buka **Mode workshop → Koneksi Redis → Periksa koneksi Redis**. Hasil benar: PING, baca/tulis, dan cleanup semuanya lulus. Baru lanjutkan GEO-01.
+
+**Inputnya:** endpoint, port, kredensial, dan opsi TLS database. **Yang diisi:** konfigurasi `.env`, bukan kode koneksi baru. **Mengapa Redis dibutuhkan:** backend harus mempunyai akses database nyata sebelum menyimpan lokasi atau membaca storage Korvet. **Bukti benar:** pemeriksaan menghubungkan client backend, menulis/membaca dua nilai berbeda pada key sementara `fieldops:<LAB_ID>:check:*`, lalu menghapus key tersebut. PING saja belum cukup.
+
+Endpoint publik ditampilkan tanpa username/password. Rahasia dan file sertifikat tetap pada backend. Jika URL salah, autentikasi/TLS ditolak, atau ACL hanya mengizinkan PING, aplikasi tetap terbuka dengan pesan perbaikan dan latihan tetap terkunci. Setelah backend restart, periksa koneksi kembali. Petunjuk empat latihan tetap dapat dibaca sebelum koneksi lulus.
+
+Untuk percobaan lokal, `.env.example` memakai `redis://redis:6379`; tetap lakukan pemeriksaan koneksi yang sama. Persiapan CA/Korvet dan endpoint eksternal ada di [pengaturan Redis Enterprise](operations.md#redis-enterprise).
 
 Peta memakai OpenStreetMap dengan wilayah nyata di Jakarta Pusat. Aset dan teknisi workshop ditempatkan pada titik representatif kecamatan/kelurahan, bukan alamat fasilitas. Nama wilayah serta koordinat awal tersedia pada [data lokasi](assets/jakarta-locations.json). Marker dapat dipilih sebelum latihan selesai; hasil radius tetap berasal dari Redis setelah validasi.
 
@@ -195,7 +211,7 @@ await run({ eachMessage: async payload => {
 | ------------------------------ | ------------------------------------------------------- |
 | Belum diisi                    | Ganti stub `WorkshopTodoError` pada latihan tersebut    |
 | Implementasi belum benar       | Periksa pesan, parameter, `await`, return atau callback |
-| Dependensi lab belum selesai   | Selesaikan GEO-01 dan siapkan posisi sebelum pencarian  |
+| Dependensi lab belum selesai   | Verifikasi koneksi Redis, lalu GEO-01 sebelum pencarian |
 | Infrastruktur tidak tersambung | Periksa koneksi Redis/Korvet pada panel infrastruktur   |
 
 Jawaban lengkap berada di `workshop/solutions/`. Cara menerapkan, backup dan reset ada dalam [panduan pengelolaan](operations.md#jawaban-dan-reset).

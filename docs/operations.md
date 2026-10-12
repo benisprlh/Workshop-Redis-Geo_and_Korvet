@@ -23,9 +23,9 @@ Runtime API hanya mengimpor `labs/`. Validator memakai fungsi yang sama dengan A
 
 ## Persiapan sesi
 
-1. Jalankan Compose dan pastikan `redis`, `korvet`, `api` healthy.
+1. Siapkan endpoint database Redis Enterprise dan akun peserta. Gunakan mode Enterprise; mode lokal tersedia untuk percobaan tanpa endpoint instruktur.
 2. Buka ketiga halaman; metadata awal: 7 aset dan 10 teknisi.
-3. Periksa starter: empat latihan belum selesai, marker preview, belum ada event consumer.
+3. Mulai dari **Koneksi Redis** di Mode workshop. Periksa starter: koneksi belum diverifikasi, empat latihan belum selesai, marker preview, belum ada event consumer.
 4. Uji solusi pada salinan terpisah dengan `test:integration`, lalu bagikan starter.
 5. Gunakan satu peserta per instance. Prefix nama lab mencegah benturan, bukan pengganti isolasi akses.
 
@@ -41,16 +41,20 @@ Helper memakai Docker biasa bila tersedia, atau VM Lima lokal yang sudah disiapk
 
 Rahasia berada pada backend `.env`, tidak menggunakan prefix `VITE_`.
 
-| Variabel                                        | Default / fungsi                                                  |
-| ----------------------------------------------- | ----------------------------------------------------------------- |
-| `LAB_ID`                                        | `fieldops-demo`; dasar namespace key/topic/group                  |
-| `REDIS_URL`                                     | `redis://redis:6379`; mendukung username/password dan `rediss://` |
-| `KAFKA_BROKERS`                                 | `korvet:9092` pada jaringan Compose                               |
-| `TELEMETRY_TOPIC`                               | Kosong → `<LAB_ID>-telemetry`                                     |
-| `KAFKA_GROUP_ID`                                | Kosong → `<LAB_ID>-dashboard`                                     |
-| `KORVET_NAMESPACE`                              | `korvet`; harus sama dengan service penyimpanan                   |
-| `KAFKA_SSL`, `KAFKA_USERNAME`, `KAFKA_PASSWORD` | Opsi Kafka TLS / SASL PLAIN                                       |
-| `WEB_PORT`, `API_PORT`                          | Port host 8088 dan 3001                                           |
+| Variabel                                          | Default / fungsi                                                      |
+| ------------------------------------------------- | --------------------------------------------------------------------- |
+| `LAB_ID`                                          | `fieldops-demo`; dasar namespace key/topic/group                      |
+| `REDIS_URL`                                       | `redis://redis:6379`; mendukung username/password dan `rediss://`     |
+| `REDIS_CA_FILE`                                   | CA PEM untuk TLS; path di container API, misalnya `/app/certs/ca.pem` |
+| `REDIS_CLIENT_CERT_FILE`, `REDIS_CLIENT_KEY_FILE` | Sertifikat/key PEM berpasangan untuk mutual TLS                       |
+| `REDIS_TLS_SERVERNAME`                            | Opsional hostname verifikasi/SNI jika endpoint memerlukannya          |
+| `REDIS_CONNECT_TIMEOUT_MS`                        | Default 5000 ms; 500–15000 ms                                         |
+| `KAFKA_BROKERS`                                   | `korvet:9092` pada jaringan Compose                                   |
+| `TELEMETRY_TOPIC`                                 | Kosong → `<LAB_ID>-telemetry`                                         |
+| `KAFKA_GROUP_ID`                                  | Kosong → `<LAB_ID>-dashboard`                                         |
+| `KORVET_NAMESPACE`                                | `korvet`; harus sama dengan service penyimpanan                       |
+| `KAFKA_SSL`, `KAFKA_USERNAME`, `KAFKA_PASSWORD`   | Opsi Kafka TLS / SASL PLAIN                                           |
+| `WEB_PORT`, `API_PORT`                            | Port host 8088 dan 3001                                               |
 
 Custom topic/group harus diawali `LAB_ID-`. Redis observasi harus menunjuk penyimpanan lokal Korvet yang sama. Redis 8.2.3 menyediakan JSON untuk registry Korvet; Redis 7 biasa tidak mencukupi.
 
@@ -74,7 +78,30 @@ Isi `.env` dengan endpoint Redis/Korvet, LAB_ID unik, kredensial dan namespace y
 ./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/external.yaml up -d --build api web
 ```
 
-Hanya API/web yang dimulai. Akun memerlukan izin membuat dan membersihkan fixture milik lab. Koneksi eksternal TLS/SASL belum diuji pada endpoint instruktur; uji sebelum sesi.
+Hanya API/web yang dimulai. Redis observasi harus menunjuk database tempat Korvet instruktur menyimpan Streams. Akun memerlukan izin membuat dan membersihkan fixture milik lab. Endpoint instruktur sebenarnya belum tersedia untuk pengujian; periksa sebelum sesi.
+
+### Redis Enterprise
+
+Default sesi Enterprise menggunakan Redis eksternal dengan Korvet lokal melalui image resmi:
+
+```bash
+cp .env.enterprise.example .env
+# Isi endpoint database, username/password, serta opsi TLS dari instruktur.
+./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/enterprise.yaml up -d --build redis-link korvet api web
+./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/enterprise.yaml exec api npm run connection:check
+```
+
+Override menghapus ketergantungan Korvet terhadap Redis lokal dan menghapus ketergantungan startup API terhadap kesehatan Korvet. Dengan demikian UI dapat dipakai memperbaiki koneksi saat endpoint salah. API mengakses `REDIS_URL` langsung. Korvet resmi meneruskan protokol Redis melalui `redis-link` pada jaringan Compose menuju endpoint yang sama; kredensial dan database URI dipertahankan. Tidak ada fallback ke database lokal. Setelah `.env` berubah, jalankan `up -d redis-link korvet api web` dengan override yang sama agar container direcreate bila konfigurasi berubah.
+
+Gunakan endpoint database yang menerima protokol Redis melalui proxy Enterprise. Port mengikuti database, bukan port console/API administrasi. Database perlu mendukung GEO, Streams, dan JSON untuk registry Korvet. Tahap persiapan memeriksa PING/SET/GET/DEL pada `fieldops:<LAB_ID>:check:*`; latihan kemudian memeriksa command GEO/Kafka/storage yang sebenarnya. Akun peserta dan Korvet juga perlu izin command/key metadata, GEO, hash posisi, SCAN/TYPE/Streams, dan JSON sesuai namespace lab. Prefix nama bukan isolasi akses.
+
+**TLS API:** letakkan CA PEM di `infra/certificates/ca.pem`, lalu isi `REDIS_CA_FILE=/app/certs/ca.pem`. Untuk mutual TLS, tambahkan client certificate/key PEM dan path `/app/certs/client.crt`, `/app/certs/client.key` pada variabel terkait. Verifikasi sertifikat selalu aktif. CA/key yang salah atau tidak terbaca menghasilkan pesan persiapan, tanpa membuka fitur. Folder sertifikat dimount read-only dan dikecualikan dari Git/image.
+
+Jika isi sertifikat diganti pada path yang sama, gunakan `up -d --force-recreate redis-link korvet api web` dengan override Enterprise agar client memuat file baru. Mengubah isi file saja tidak mengubah konfigurasi Compose.
+
+**TLS Korvet lokal:** service `redis-link` meneruskan byte Redis ke endpoint instruktur menggunakan Node TLS. API dan penghubung membaca CA/cert/key PEM yang sama; peserta tidak perlu membuat trust store Java. Koneksi Korvet ke penghubung berada pada jaringan Compose, tanpa port penghubung dipublikasikan ke host. Penghubung memverifikasi sertifikat server, mendukung mutual TLS, dan tidak membaca/menulis command Redis sendiri. Jika URI memakai `redis://`, transport mengikuti endpoint tanpa TLS.
+
+Pengujian image Korvet v0.19.0 menunjukkan opsi Java key store tidak mengirim sertifikat client pada koneksi Redis. Penghubung disediakan agar mode Enterprise tetap dapat digunakan pada database yang mewajibkan mutual TLS. Image Korvet dan protokol Kafka tetap memakai distribusi resmi; penghubung hanya mengurus transport Redis. Jika Korvet telah disiapkan instruktur, mode endpoint instruktur cukup menjalankan API/web dan tidak memakai penghubung lokal.
 
 ## Jawaban dan reset
 
@@ -116,6 +143,7 @@ npm run format:check
 npm run typecheck
 npm run build
 npm test
+npm run test:connection
 npx playwright install chromium
 LAB_ID=fieldops-test ./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/test.yaml up -d redis korvet
 REDIS_URL=redis://localhost:16379 KAFKA_BROKERS=localhost:19092 npm run test:integration
@@ -127,7 +155,7 @@ LAB_ID=fieldops-test ./scripts/workspace-compose.sh -f compose.yaml -f infra/com
 
 Unit test memeriksa template starter dalam salinan terpisah, parsing dan state; edit peserta tidak ditimpa. Integrasi menggunakan salinan solusi sementara dengan LAB_ID unik. Uji gangguan hanya menghentikan instance `fieldops-test` pada port 16379/19092. Screenshot hasil uji berada di `test-results/screenshots/`; `docs/assets/` memuat pilihan screenshot aktual untuk panduan.
 
-Pemeriksaan peserta melalui UI atau `exec api npm run lab:validate`. Exit code 1 pada starter adalah hasil yang diharapkan.
+Pemeriksaan peserta: `exec api npm run connection:check` terlebih dahulu, lalu `exec api npm run lab:validate`. Gunakan file Compose/override yang sama dengan startup. Setelah watcher/restart backend, koneksi kembali memerlukan pemeriksaan. Exit code 1 pada starter adalah hasil yang diharapkan untuk empat fungsi yang belum diisi.
 
 ### Catatan verifikasi
 
@@ -137,7 +165,9 @@ Pembaruan peta pada 7 Oktober diuji ulang melalui build/typecheck, unit starter,
 
 Peta menggunakan tile OpenStreetMap sebagai tampilan awal; zoom dan klik titik bekerja pada koordinat geografis Indonesia. Dataset awal berada di `apps/api/src/operations/fixtures.ts`; sumber 17 wilayah dan koordinatnya dicatat di [data lokasi](assets/jakarta-locations.json). Wilayah teknisi adalah area tugas awal; form memperbarui koordinat tanpa melakukan reverse geocoding. Posisi yang sudah disimpan peserta tetap dipakai. Jika ingin seluruh posisi kembali ke dataset awal, gunakan reset data lab sesuai prosedur di atas.
 
-Runtime AMD64/emulasi serta endpoint eksternal TLS/SASL belum diuji. Manifest image menyediakan ARM64 dan AMD64. Rincian release, commit dan keterbatasan format storage ada di [referensi](references.md).
+Pembaruan 12 Oktober menambahkan persiapan koneksi sebelum empat latihan. Build/typecheck, lima unit test, browser pada tiga ukuran, watcher dan gangguan layanan diperiksa ulang. `test:connection` menjalankan Redis 8.2.3 dengan password, CA privat dan mutual TLS, serta Korvet resmi melalui penghubung. URL salah, password salah, CA tidak dipercaya, client certificate tidak ada, akun PING tanpa SET, dan port tidak tersedia tetap mengunci fitur. Solusi lengkap lulus pada koneksi TLS tersebut, termasuk storage/consumer, radius, alarm, deduplikasi dan restart. Transport tanpa TLS juga diperiksa dengan nilai yang dicocokkan langsung pada database tujuan.
+
+Runtime AMD64/emulasi, endpoint Redis Enterprise instruktur yang sebenarnya, serta Kafka TLS/SASL eksternal belum diuji. Endpoint instruktur belum disediakan; hasil TLS/mutual TLS di atas menggunakan instance Redis asli yang khusus uji, bukan klaim pengujian produk Enterprise pada endpoint tersebut. Manifest image menyediakan ARM64 dan AMD64. Rincian release, commit dan keterbatasan format storage ada di [referensi](references.md).
 
 ## Troubleshooting
 

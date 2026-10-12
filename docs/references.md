@@ -93,6 +93,19 @@ Halaman producer/consumer resmi menampilkan versi **2.2.4** pada header ketika d
 - [Kebijakan Nominatim](https://operations.osmfoundation.org/policies/nominatim/): dipakai hanya saat menyusun dataset, satu mesin/satu thread, paling cepat satu permintaan per detik, dengan User-Agent FieldOps dan hasil dicache. Aplikasi tidak memanggil API geocoding saat dijalankan.
 - [Lisensi/attribution OpenStreetMap](https://www.openstreetmap.org/copyright): data geografis © OpenStreetMap contributors, ODbL. Aset, teknisi, dan sensor tetap fiktif; koordinat tidak menyatakan lokasi fasilitas atau petugas nyata.
 
+## Persiapan Redis Enterprise
+
+Sumber tambahan diperiksa pada **12 Oktober 2026**:
+
+- [Koneksi node-redis](https://redis.io/docs/latest/develop/clients/nodejs/connect/): URI, autentikasi, TLS, CA, certificate/key client. Project tetap menggunakan **node-redis 4.7.1**; API yang dipakai diperiksa terhadap package terpasang, tidak mengambil API versi 5 tanpa verifikasi.
+- [TLS Redis Enterprise/Software](https://redis.io/docs/latest/operate/rs/security/encryption/tls/enable-tls/): endpoint database, TLS client, serta mutual TLS yang dikonfigurasi instruktur.
+- [Konfigurasi Korvet 0.19](https://redis-field-engineering.github.io/korvet/0.19/reference/configuration.html): `KORVET_REDIS_URI` menerima `redis://`/`rediss://` dan mengesampingkan host/port/username/password terpisah. Wrapper mempertahankan kredensial/database URI, mengarahkan Korvet ke penghubung privat, lalu meneruskan ke endpoint Redis yang sama.
+- [Node TLS](https://nodejs.org/docs/latest-v22.x/api/tls.html): verifikasi CA/hostname dan sertifikat client pada penghubung transport Redis. Node 22.22.0 dipin; tidak ada dependency atau broker tambahan.
+
+Image Korvet v0.19.0 diuji dengan opsi Java trust/key store. Koneksi Redis tidak mengirim sertifikat client pada skenario mutual TLS tersebut. Mode Enterprise memakai `redis-link` untuk transport TLS menuju database yang sama; ini bukan implementasi Redis/Kafka atau pengganti Korvet.
+
+Tahap koneksi adalah persiapan konfigurasi `.env`, bukan latihan TypeScript kelima. Status lulus berasal dari koneksi nyata, PING, dua nilai SET/GET berbeda dan DEL pada fixture dengan TTL/namespace lab. Keempat fungsi bisnis tetap diuji oleh validator semula. UI hanya menerima metadata endpoint tanpa URI atau kredensial.
+
 ## Versi project dan status verifikasi
 
 Runtime Node dipin **22.22.0**, package manager **npm 10.9.4**. Versi dependency frontend/backend dipin pada `package.json` dan `package-lock.json`; image infrastruktur dipin pada `compose.yaml`. Pin adalah konfigurasi reproducible, sedangkan pengujian runtime adalah bukti terpisah.
@@ -105,6 +118,8 @@ Lingkungan awal tidak memiliki Node atau Docker di PATH. Untuk pengujian lokal, 
 | Redis                | 8.2.3-alpine, GEO dan JSON tersedia                                           |
 | Korvet               | v0.19.0, digest di atas, build 2026-07-01                                     |
 | KafkaJS              | 2.2.4; non-idempotent send, admin satu partition, subscribe/eachMessage diuji |
+| node-redis           | 4.7.1; autentikasi URI, TLS/CA dan mutual TLS diuji                           |
+| Penghubung Redis     | Node 22.22.0, relay TCP/TLS; image bertag 1.0.0 khusus mode Enterprise        |
 | API / web            | Express 4.21.2, React 19.2.0, Vite 7.1.12; dependency exact dan lockfile      |
 | Docker / Compose uji | Engine 29.8.2 ARM64 / Compose 5.6.0                                           |
 | Browser              | Playwright 1.56.1, Chromium 141 ARM64                                         |
@@ -114,6 +129,8 @@ Redis 7.4.6 biasa sempat diuji dan Korvet gagal dengan unknown command JSON.SET.
 Manifest multiarch Korvet v0.19.0 menyediakan linux/arm64 dan linux/amd64. Digest ARM64: sha256:eb16aef5a78fc056c0b6ff68873b1084087eb4754e1080a286050f074d621360. Digest AMD64: sha256:1a570cdcd16ea544ecf2410d37a32c33c7b240519fe8f4a038a13af5ecbde105. Runtime ARM64 pada Apple Silicon berhasil tanpa emulasi. Runtime AMD64 serta emulasi AMD64 belum dijalankan; manifest adalah bukti ketersediaan image, bukan hasil runtime platform itu.
 
 Hasil pemeriksaan dan cara mengulangnya ada pada [pengelolaan](operations.md#catatan-verifikasi). Screenshot terpilih berada di `docs/assets/`; hasil lengkap browser di `test-results/screenshots/`.
+
+Pengujian koneksi 12 Oktober menggunakan database Redis 8.2.3 terisolasi dengan password, CA privat dan client certificate wajib. API serta Korvet resmi melalui penghubung mencapai database yang sama; empat latihan solusi dan alur bisnis lulus. Kasus URL/auth/TLS/ACL/port yang salah tidak menghasilkan sukses palsu. Endpoint Redis Enterprise instruktur belum disediakan, sehingga versi/konfigurasi Enterprise nyata dan Kafka TLS/SASL eksternal belum divalidasi. Startup Enterprise yang disediakan menggunakan endpoint instruktur dan tidak menjalankan database Redis lokal sebagai fallback.
 
 ## Batas aplikasi workshop
 

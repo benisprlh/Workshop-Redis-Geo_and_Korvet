@@ -1,8 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
-import { X, Check, Circle, ExternalLink, RefreshCw, Copy, ChevronDown } from 'lucide-react';
+import {
+  X,
+  Check,
+  Circle,
+  ExternalLink,
+  RefreshCw,
+  Copy,
+  ChevronDown,
+  ArrowRight,
+} from 'lucide-react';
 import type { Snapshot, ExerciseId, Hint, ExerciseStatus } from '@fieldops/contracts';
 import { request, time } from '../../shared/api';
 import { Badge } from '../../shared/ui';
+import RedisConnectionPanel from './RedisConnectionPanel';
 
 const statusLabels: Record<ExerciseStatus, string> = {
   todo: 'Belum diisi',
@@ -49,20 +59,23 @@ export default function WorkshopDrawer({
   close: () => void;
 }) {
   const [hints, setHints] = useState<Hint[]>([]);
-  const [selected, setSelected] = useState<ExerciseId>(active || 'GEO-01');
+  const connectionReady = state.redisConnection.status === 'passed';
+  const [selected, setSelected] = useState<ExerciseId | 'connection'>(
+    active || (connectionReady ? 'GEO-01' : 'connection'),
+  );
   const [level, setLevel] = useState(1);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const drawer = useRef<HTMLElement>(null);
   const closeButton = useRef<HTMLButtonElement>(null);
-  const exercise = state.exercises.find((item) => item.id === selected)!;
+  const exercise = state.exercises.find((item) => item.id === selected);
   const hint = hints.find((item) => item.id === selected);
   const passed = state.exercises.filter((item) => item.status === 'passed').length;
   const tone =
-    exercise.status === 'passed'
+    exercise?.status === 'passed'
       ? 'green'
-      : ['incorrect', 'infrastructure'].includes(exercise.status)
+      : ['incorrect', 'infrastructure'].includes(exercise?.status || '')
         ? 'amber'
         : 'neutral';
 
@@ -113,7 +126,7 @@ export default function WorkshopDrawer({
   }
   async function copyPath() {
     try {
-      await navigator.clipboard.writeText(exercise.path);
+      await navigator.clipboard.writeText(exercise?.path || '.env');
       setCopied(true);
     } catch {
       setError('Salin path yang ditampilkan lalu buka file di editor.');
@@ -159,6 +172,25 @@ export default function WorkshopDrawer({
             </div>
           </div>
           <nav className="exercise-list" aria-label="Pilih latihan">
+            <button
+              className={`exercise-row ${selected === 'connection' ? 'active' : ''}`}
+              aria-pressed={selected === 'connection'}
+              onClick={() => {
+                setSelected('connection');
+                setCopied(false);
+              }}
+            >
+              <span className={`exercise-check ${connectionReady ? 'done' : ''}`}>
+                {connectionReady ? <Check size={14} /> : <Circle size={13} />}
+              </span>
+              <span className="exercise-row-label">
+                <span className="mono">PERSIAPAN</span>
+                <strong>Koneksi Redis</strong>
+              </span>
+              <span className={`exercise-row-status ${connectionReady ? 'done' : ''}`}>
+                {connectionReady ? 'Lulus' : 'Mulai di sini'}
+              </span>
+            </button>
             {state.exercises.map((item) => (
               <button
                 key={item.id}
@@ -183,66 +215,72 @@ export default function WorkshopDrawer({
               </button>
             ))}
           </nav>
-          <section className="exercise-detail" aria-label={`Petunjuk ${selected}`}>
-            <div className="exercise-detail-heading">
-              <h3>{selected}</h3>
-              <Badge tone={tone}>{statusLabels[exercise.status]}</Badge>
-            </div>
-            <div className="exercise-path">
-              <code>{exercise.path}</code>
-              <button
-                className="icon-button"
-                aria-label="Salin path file latihan"
-                title="Salin path"
-                onClick={copyPath}
-              >
-                {copied ? <Check size={14} /> : <Copy size={14} />}
-              </button>
-            </div>
-            <dl className="exercise-contract">
-              <dt>Input</dt>
-              <dd>{contracts[selected].input}</dd>
-              <dt>Hasil</dt>
-              <dd>{contracts[selected].result}</dd>
-            </dl>
-            {(exercise.checkedAt || exercise.status !== 'todo') && (
-              <p
-                className={`exercise-message ${['incorrect', 'infrastructure'].includes(exercise.status) ? 'warning' : ''}`}
-              >
-                {exercise.message}
-                {exercise.checkedAt && <small>Diperiksa {time(exercise.checkedAt)}</small>}
-              </p>
-            )}
-            <div className="hint-tabs" aria-label="Tingkat petunjuk">
-              {[1, 2, 3].map((value) => (
-                <button
-                  key={value}
-                  aria-pressed={level === value}
-                  className={level === value ? 'active' : ''}
-                  onClick={() => setLevel(value)}
+          {selected === 'connection' ? (
+            <RedisConnectionPanel connection={state.redisConnection} />
+          ) : (
+            exercise && (
+              <section className="exercise-detail" aria-label={`Petunjuk ${selected}`}>
+                <div className="exercise-detail-heading">
+                  <h3>{selected}</h3>
+                  <Badge tone={tone}>{statusLabels[exercise.status]}</Badge>
+                </div>
+                <div className="exercise-path">
+                  <code>{exercise.path}</code>
+                  <button
+                    className="icon-button"
+                    aria-label="Salin path file latihan"
+                    title="Salin path"
+                    onClick={copyPath}
+                  >
+                    {copied ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                </div>
+                <dl className="exercise-contract">
+                  <dt>Input</dt>
+                  <dd>{contracts[selected].input}</dd>
+                  <dt>Hasil</dt>
+                  <dd>{contracts[selected].result}</dd>
+                </dl>
+                {(exercise.checkedAt || exercise.status !== 'todo') && (
+                  <p
+                    className={`exercise-message ${['incorrect', 'infrastructure'].includes(exercise.status) ? 'warning' : ''}`}
+                  >
+                    {exercise.message}
+                    {exercise.checkedAt && <small>Diperiksa {time(exercise.checkedAt)}</small>}
+                  </p>
+                )}
+                <div className="hint-tabs" aria-label="Tingkat petunjuk">
+                  {[1, 2, 3].map((value) => (
+                    <button
+                      key={value}
+                      aria-pressed={level === value}
+                      className={level === value ? 'active' : ''}
+                      onClick={() => setLevel(value)}
+                    >
+                      Petunjuk {value}
+                    </button>
+                  ))}
+                </div>
+                <div className="hint-content">
+                  <span>{['Konsep', 'API dan parameter', 'Pseudocode parsial'][level - 1]}</span>
+                  {level === 3 ? (
+                    <pre>{hint?.levels[level - 1] || 'Memuat petunjuk…'}</pre>
+                  ) : (
+                    <p>{hint?.levels[level - 1] || 'Memuat petunjuk…'}</p>
+                  )}
+                </div>
+                <a
+                  className="text-button"
+                  href={`/api/docs/workshop.md#${selected.toLowerCase()}`}
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  Petunjuk {value}
-                </button>
-              ))}
-            </div>
-            <div className="hint-content">
-              <span>{['Konsep', 'API dan parameter', 'Pseudocode parsial'][level - 1]}</span>
-              {level === 3 ? (
-                <pre>{hint?.levels[level - 1] || 'Memuat petunjuk…'}</pre>
-              ) : (
-                <p>{hint?.levels[level - 1] || 'Memuat petunjuk…'}</p>
-              )}
-            </div>
-            <a
-              className="text-button"
-              href={`/api/docs/workshop.md#${selected.toLowerCase()}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Baca panduan latihan
-              <ExternalLink size={12} />
-            </a>
-          </section>
+                  Baca panduan latihan
+                  <ExternalLink size={12} />
+                </a>
+              </section>
+            )
+          )}
           <details className="workshop-tools">
             <summary>
               Infrastruktur lab
@@ -304,14 +342,50 @@ export default function WorkshopDrawer({
               {error}
             </p>
           )}
-          <p>Simpan perubahan di editor, lalu periksa latihan.</p>
+          <p>
+            {selected === 'connection'
+              ? connectionReady
+                ? 'Koneksi terverifikasi. Lanjutkan empat latihan backend.'
+                : 'Terapkan .env di backend, lalu periksa koneksi.'
+              : connectionReady
+                ? 'Simpan perubahan di editor, lalu periksa latihan.'
+                : 'Periksa koneksi Redis terlebih dahulu sebelum validasi latihan.'}
+          </p>
+          {selected !== 'connection' && !connectionReady && (
+            <button className="button secondary full" onClick={() => setSelected('connection')}>
+              Buka persiapan koneksi Redis
+            </button>
+          )}
           <button
             className="button primary full"
-            disabled={state.checking || busy}
-            onClick={() => void action('/workshop/validate')}
+            disabled={
+              state.checking ||
+              busy ||
+              state.redisConnection.status === 'checking' ||
+              (selected !== 'connection' && !connectionReady)
+            }
+            onClick={() => {
+              if (selected === 'connection' && connectionReady) {
+                setSelected('GEO-01');
+                setLevel(1);
+              } else
+                void action(
+                  selected === 'connection' ? '/workshop/redis/check' : '/workshop/validate',
+                );
+            }}
           >
-            <RefreshCw size={15} className={state.checking ? 'spin' : ''} />
-            {state.checking || busy ? 'Memeriksa latihan…' : 'Periksa latihan'}
+            {selected === 'connection' && connectionReady ? (
+              <ArrowRight size={15} />
+            ) : (
+              <RefreshCw size={15} className={state.checking || busy ? 'spin' : ''} />
+            )}
+            {state.checking || busy || state.redisConnection.status === 'checking'
+              ? 'Memeriksa…'
+              : selected === 'connection'
+                ? connectionReady
+                  ? 'Lanjutkan ke GEO-01'
+                  : 'Periksa koneksi Redis'
+                : 'Periksa latihan'}
           </button>
         </footer>
       </aside>

@@ -5,13 +5,19 @@ import { InfrastructureError, timeout } from '../shared/errors.js';
 
 export function makeRedis(reconnect = false) {
   const client = createClient({
-    url: config.redisUrl,
+    ...config.redis.options,
     disableOfflineQueue: true,
     socket: {
-      connectTimeout: 2000,
+      ...config.redis.options.socket,
+      connectTimeout: config.redis.connectTimeout,
       reconnectStrategy: reconnect ? (retries) => Math.min(300 + retries * 300, 3000) : false,
     },
   });
+  const connect = client.connect.bind(client);
+  client.connect = async () => {
+    if (config.redis.issue) throw new InfrastructureError(config.redis.issue);
+    return connect();
+  };
   client.on('error', () => {}); // URI dan kredensial tetap berada pada backend.
   return client;
 }
@@ -97,6 +103,7 @@ export class Infrastructure {
   private connecting?: Promise<void>;
   private closed = false;
   private timer?: ReturnType<typeof setInterval>;
+  private streamingEnabled = false;
   constructor(private changed: () => void) {
     this.redis.on('ready', () => {
       this.redisReady = true;
@@ -122,20 +129,25 @@ export class Infrastructure {
       void this.refresh();
     }, 5000);
   }
+  enableStreaming(): void {
+    this.streamingEnabled = true;
+    void this.refresh();
+  }
   async refresh(): Promise<void> {
     if (this.closed || this.connecting) return this.connecting;
     this.connecting = (async () => {
-      try {
-        await timeout(ensureTopic(config.topic), 9000);
-        this.korvetReady = true;
-        if (!this.producerReady) {
-          await this.producer.connect();
-          this.producerReady = true;
+      if (this.streamingEnabled)
+        try {
+          await timeout(ensureTopic(config.topic), 9000);
+          this.korvetReady = true;
+          if (!this.producerReady) {
+            await this.producer.connect();
+            this.producerReady = true;
+          }
+        } catch {
+          this.korvetReady = false;
+          this.producerReady = false;
         }
-      } catch {
-        this.korvetReady = false;
-        this.producerReady = false;
-      }
       if (this.redis.isReady) {
         try {
           await timeout(this.redis.ping(), 2000);

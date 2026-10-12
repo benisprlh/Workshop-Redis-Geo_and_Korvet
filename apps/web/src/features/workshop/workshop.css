@@ -283,6 +283,81 @@
 .drawer-footer .inline-error {
   color: var(--red);
 }
+.drawer-footer .button + .button {
+  margin-top: 8px;
+}
+.connection-endpoint {
+  display: grid;
+  grid-template-columns: 125px minmax(0, 1fr);
+  gap: 8px 12px;
+  margin: 0 0 10px;
+  font-size: 11px;
+}
+.connection-endpoint dt {
+  color: var(--muted);
+}
+.connection-endpoint dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+.connection-steps {
+  padding-left: 20px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.connection-instructions > summary {
+  cursor: pointer;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+.connection-steps li {
+  margin: 0 0 12px;
+  padding-left: 4px;
+}
+.connection-steps strong {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+}
+.connection-steps p {
+  font-size: 11px;
+  line-height: 1.6;
+  margin-top: 4px;
+}
+.connection-tls {
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--muted);
+}
+.connection-tls summary {
+  padding: 8px 0;
+  cursor: pointer;
+  color: var(--text);
+}
+.connection-tls p {
+  line-height: 1.6;
+  margin: 0 0 8px;
+}
+.connection-checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 8px 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.connection-checks span {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.connection-checks .done {
+  color: var(--green);
+}
 @keyframes rotate {
   to {
     transform: rotate(360deg);

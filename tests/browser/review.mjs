@@ -74,6 +74,45 @@ try {
     assert.equal(await page.getByRole('button', { name: 'Mulai simulasi' }).isDisabled(), true);
     await page.getByRole('button', { name: /Mode workshop/ }).click();
     await page.getByRole('dialog').waitFor();
+    const preparation = page.getByRole('button', { name: /PERSIAPAN/ });
+    await preparation.click();
+    assert.equal(await preparation.getAttribute('aria-pressed'), 'true');
+    await page.screenshot({
+      path: `test-results/screenshots/starter-connection-${viewport.width}.png`,
+      fullPage: false,
+    });
+    if (viewport.width === 1440) {
+      await page
+        .getByRole('navigation', { name: 'Pilih latihan' })
+        .getByRole('button', { name: /GEO-01/ })
+        .click();
+      assert.equal(
+        await page.getByRole('button', { name: 'Periksa latihan', exact: true }).isDisabled(),
+        true,
+      );
+      await preparation.click();
+      await page.getByRole('button', { name: 'Periksa koneksi Redis', exact: true }).click();
+      await page.getByText('Terverifikasi', { exact: true }).waitFor();
+      await page.getByRole('button', { name: 'Lanjutkan ke GEO-01', exact: true }).click();
+      assert.equal(
+        await page
+          .getByRole('navigation', { name: 'Pilih latihan' })
+          .getByRole('button', { name: /GEO-01/ })
+          .getAttribute('aria-pressed'),
+        'true',
+      );
+      const state = await (await page.request.get(`${url}/api/state`)).json();
+      assert.deepEqual(state.redisConnection.checks, {
+        ping: true,
+        writeRead: true,
+        cleanup: true,
+      });
+      assert.ok(state.exercises.every((exercise) => exercise.status === 'todo'));
+    }
+    await page
+      .getByRole('navigation', { name: 'Pilih latihan' })
+      .getByRole('button', { name: /GEO-01/ })
+      .click();
     await page.getByRole('button', { name: 'Petunjuk 2' }).click();
     await page.getByText('API dan parameter', { exact: true }).waitFor();
     await page.screenshot({
@@ -82,7 +121,9 @@ try {
     });
     if (viewport.width === 1440) {
       for (const id of ['GEO-01', 'GEO-02', 'KORVET-01', 'KORVET-02']) {
-        const row = page.getByRole('button', { name: new RegExp(id) });
+        const row = page
+          .getByRole('navigation', { name: 'Pilih latihan' })
+          .getByRole('button', { name: new RegExp(id) });
         await row.click();
         assert.equal(await row.getAttribute('aria-pressed'), 'true');
         await page.getByRole('button', { name: 'Petunjuk 3' }).click();
@@ -155,13 +196,14 @@ try {
         tileRetry: true,
         viewports: ['1440x900', '1366x768', '768x1024'],
         starter: true,
+        connectionFirst: true,
       },
       null,
       2,
     ),
   );
   console.log(
-    'LULUS: tiga halaman starter, peta OpenStreetMap nyata, koordinat Jakarta Pusat, fallback/retry tile, empat petunjuk, panduan, filter, kontrol terkunci, tanpa pageerror/API error/overflow.',
+    'LULUS: persiapan Redis sebelum latihan, tiga halaman starter, peta nyata/fallback/retry, empat petunjuk, panduan, kontrol terkunci, tanpa pageerror/API error/overflow.',
   );
 } finally {
   await browser.close();

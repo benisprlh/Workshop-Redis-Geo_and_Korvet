@@ -18,6 +18,7 @@
     "typecheck": "npm run typecheck -w apps/api && npm run typecheck -w apps/web",
     "test": "tsx --test tests/unit/*.test.ts",
     "test:integration": "node tests/integration/solutions.mjs",
+    "test:connection": "node tests/integration/connection.mjs",
     "test:browser": "node tests/browser/review.mjs",
     "test:outages": "node tests/integration/outages.mjs --local-test-instance",
     "test:watcher": "node tests/integration/watcher.mjs",
@@ -25,6 +26,7 @@
     "lab:reset": "node scripts/labs/files.mjs reset",
     "data:reset": "tsx scripts/labs/reset-data.ts",
     "lab:validate": "node scripts/labs/validate.mjs",
+    "connection:check": "node scripts/labs/connection.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

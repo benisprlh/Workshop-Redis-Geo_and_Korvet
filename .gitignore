@@ -3,6 +3,9 @@ dist/
 .env
 .env.*
 !.env.example
+!.env.enterprise.example
+infra/certificates/*
+!infra/certificates/.gitkeep
 .workshop-backups/
 test-results/
 playwright-report/

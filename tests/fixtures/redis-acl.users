@@ -1,0 +1,2 @@
+user default on >fieldops-test-password ~* &* +@all
+user ping-only on >fieldops-ping-password ~fieldops:* +ping +get +del +client|setinfo

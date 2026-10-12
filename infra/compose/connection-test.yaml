@@ -1,0 +1,66 @@
+# Instance terisolasi khusus test:connection. Jangan arahkan ke endpoint instruktur.
+name: fieldops-connection-test
+services:
+  redis:
+    command: ['redis-server', '/etc/redis/lab.conf']
+    ports: !override ['127.0.0.1:17379:6379']
+    volumes: !override
+      - ./test-results/redis-connection/certs:/certs:ro
+      - ./tests/fixtures/redis-tls.conf:/etc/redis/lab.conf:ro
+      - ./tests/fixtures/redis-acl.users:/etc/redis/lab.users:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'redis-cli',
+          '--tls',
+          '--cacert',
+          '/certs/ca.pem',
+          '--cert',
+          '/certs/client.crt',
+          '--key',
+          '/certs/client.key',
+          '-a',
+          'fieldops-test-password',
+          '--no-auth-warning',
+          'ping',
+        ]
+  korvet:
+    entrypoint: ['/bin/sh', '/workshop/korvet-entrypoint.sh']
+    depends_on: !override
+      redis: { condition: service_healthy }
+      redis-link: { condition: service_healthy }
+    ports: !override ['127.0.0.1:19192:9092']
+    environment:
+      REDIS_URL: rediss://default:fieldops-test-password@redis:6379
+      KORVET_BROKER_ADVERTISED_HOST: localhost
+      KORVET_BROKER_ADVERTISED_PORT: '19192'
+    volumes:
+      - ./infra/redis-link/korvet-entrypoint.sh:/workshop/korvet-entrypoint.sh:ro
+  redis-link:
+    image: fieldops-redis-link:1.0.0
+    build: { context: ., dockerfile: infra/docker/redis-link.Dockerfile }
+    init: true
+    environment:
+      REDIS_URL: rediss://default:fieldops-test-password@redis:6379
+      REDIS_CA_FILE: /app/certs/ca.pem
+      REDIS_CLIENT_CERT_FILE: /app/certs/client.crt
+      REDIS_CLIENT_KEY_FILE: /app/certs/client.key
+    volumes:
+      - ./test-results/redis-connection/certs:/app/certs:ro
+    depends_on: { redis: { condition: service_healthy } }
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "const s=require('net').connect(16379,'127.0.0.1');s.on('connect',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));s.setTimeout(2000,()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 3s
+      retries: 12
+  api:
+    profiles: ['application']
+  web:
+    profiles: ['application']

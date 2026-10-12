@@ -10,6 +10,21 @@ export interface Position {
   longitude: number;
   latitude: number;
 }
+export interface RedisConnection {
+  status: 'unchecked' | 'checking' | 'passed' | 'failed';
+  endpoint: {
+    host: string;
+    port: number;
+    database: number;
+    tls: boolean;
+    credentialsConfigured: boolean;
+    caConfigured: boolean;
+    clientCertificateConfigured: boolean;
+  };
+  message: string;
+  checkedAt?: string;
+  checks: { ping: boolean; writeRead: boolean; cleanup: boolean };
+}
 export interface Asset extends Position {
   id: string;
   name: string;
@@ -72,6 +87,7 @@ export interface Journey {
 export type Scenario = 'normal' | 'temperature' | 'voltage';
 export interface Snapshot {
   labId: string;
+  redisConnection: RedisConnection;
   topic: string;
   groupId: string;
   assets: Asset[];

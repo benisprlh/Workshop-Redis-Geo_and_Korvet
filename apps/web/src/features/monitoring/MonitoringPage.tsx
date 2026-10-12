@@ -33,8 +33,11 @@ export default function MonitoringPage({
   const [storage, setStorage] = useState<StorageSnapshot>();
   const [storageError, setStorageError] = useState('');
   const [selectedEvent, setSelectedEvent] = useState('');
-  const producerUnlocked = s.exercises.find((e) => e.id === 'KORVET-01')?.status === 'passed';
-  const consumerUnlocked = s.exercises.find((e) => e.id === 'KORVET-02')?.status === 'passed';
+  const connectionReady = s.redisConnection.status === 'passed' && s.infra.redis;
+  const producerUnlocked =
+    connectionReady && s.exercises.find((e) => e.id === 'KORVET-01')?.status === 'passed';
+  const consumerUnlocked =
+    connectionReady && s.exercises.find((e) => e.id === 'KORVET-02')?.status === 'passed';
   const events = s.events.filter((e) => e.assetId === assetId);
   const latest = events.at(-1);
   const status = assetStatus(s, assetId);
@@ -58,6 +61,10 @@ export default function MonitoringPage({
     }
   }
   async function inspect() {
+    if (!connectionReady) {
+      setStorageError('Periksa koneksi Redis pada Mode workshop terlebih dahulu.');
+      return;
+    }
     try {
       const evidence = await request<StorageSnapshot & { error?: string }>('/storage');
       setStorage(evidence);
@@ -73,7 +80,7 @@ export default function MonitoringPage({
       void inspect();
     }, 4000);
     return () => clearInterval(timer);
-  }, [storageOpen]);
+  }, [storageOpen, connectionReady]);
   return (
     <>
       <div className="page-heading">

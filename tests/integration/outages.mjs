@@ -75,6 +75,10 @@ async function api(path, method = 'GET', body) {
   return d;
 }
 async function validate() {
+  if ((await api('/state')).redisConnection.status !== 'passed') {
+    const connection = await api('/workshop/redis/check', 'POST', {});
+    assert.equal(connection.redisConnection.status, 'passed');
+  }
   const s = await api('/workshop/validate', 'POST', {});
   assert.ok(
     s.exercises.every((e) => e.status === 'passed'),
@@ -82,6 +86,8 @@ async function validate() {
   );
 }
 try {
+  await wait(async () => (await api('/state')).infra.redis);
+  await api('/workshop/redis/check', 'POST', {});
   await wait(async () => (await api('/state')).infra.producer);
   await validate();
   const event = {

@@ -7,9 +7,10 @@ import { Infrastructure, makeConsumer } from '../infrastructure/clients.js';
 import { State } from './state.js';
 import { resetLabData } from './reset-data.js';
 import { Validator } from '../workshop/validator.js';
+import { checkRedisConnection } from '../workshop/redis-connection.js';
 import { assets } from './fixtures.js';
 import { storedEvent } from '../infrastructure/stream-storage.js';
-import { ApiError, safeMessage, timeout } from '../shared/errors.js';
+import { ApiError, InfrastructureError, safeMessage, timeout } from '../shared/errors.js';
 import type {
   Position,
   Scenario,
@@ -26,6 +27,13 @@ export class Runtime {
       korvet: this.infra.korvetReady,
       producer: this.infra.producerReady,
     });
+    if (!this.infra.redisReady && this.state.data.redisConnection.status === 'passed') {
+      this.state.data.redisConnection.status = 'failed';
+      this.state.data.redisConnection.message =
+        'Koneksi Redis terputus. Pulihkan endpoint lalu periksa koneksi kembali.';
+      this.stopSimulator();
+      void this.stopConsumer();
+    }
     this.state.emit();
   });
   validator = new Validator(this.state, this.infra);
@@ -42,13 +50,49 @@ export class Runtime {
     );
   }
   requireExercise(id: ExerciseId): void {
+    this.requireRedisConnection();
     if (!this.state.passed(id))
       throw new ApiError(
         423,
         `${id} terkunci. Isi apps/api/src/labs/${id.startsWith('GEO') ? 'geo' : 'korvet'}.ts lalu Periksa latihan.`,
       );
   }
+  requireRedisConnection(): void {
+    if (this.state.data.redisConnection.status === 'failed')
+      throw new InfrastructureError(this.state.data.redisConnection.message);
+    if (this.state.data.redisConnection.status !== 'passed')
+      throw new ApiError(
+        423,
+        'Selesaikan persiapan Koneksi Redis pada Mode workshop sebelum melanjutkan latihan.',
+      );
+    this.infra.requireRedis();
+  }
+  async checkConnection(): Promise<void> {
+    if (this.state.data.checking || this.state.data.redisConnection.status === 'checking')
+      throw new ApiError(409, 'Tunggu pemeriksaan yang sedang berjalan.');
+    this.state.data.redisConnection.status = 'checking';
+    this.state.emit();
+    this.state.data.redisConnection = await checkRedisConnection();
+    if (this.state.data.redisConnection.status === 'passed') {
+      this.infra.enableStreaming();
+      this.state.activity('Koneksi Redis terverifikasi. Empat latihan siap diperiksa.');
+    } else {
+      this.stopSimulator();
+      await this.stopConsumer();
+    }
+    this.state.emit();
+  }
   async validate(): Promise<void> {
+    if (this.state.data.redisConnection.status !== 'passed') {
+      const disconnected = this.state.data.redisConnection.status === 'failed';
+      for (const exercise of this.state.data.exercises) {
+        exercise.status = disconnected ? 'infrastructure' : 'dependency';
+        exercise.message =
+          'Selesaikan persiapan Koneksi Redis pada .env, lalu tekan Periksa koneksi Redis.';
+      }
+      this.state.emit();
+      return;
+    }
     await this.validator.run();
     if (this.state.passed('GEO-01')) {
       try {

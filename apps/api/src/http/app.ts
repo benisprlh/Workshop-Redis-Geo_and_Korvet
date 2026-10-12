@@ -23,9 +23,17 @@ export function createApp(runtime: Runtime) {
   app.get('/api/workshop/hints', (_req, res) => res.json(hints));
   registerGuides(app);
   app.post(
+    '/api/workshop/redis/check',
+    wrap(async (_req, res) => {
+      await runtime.checkConnection();
+      res.json(runtime.state.snapshot());
+    }),
+  );
+  app.post(
     '/api/workshop/validate',
     wrap(async (_req, res) => {
-      if (runtime.state.data.checking) throw new ApiError(409, 'Pemeriksaan masih berjalan.');
+      if (runtime.state.data.checking || runtime.state.data.redisConnection.status === 'checking')
+        throw new ApiError(409, 'Pemeriksaan masih berjalan.');
       await runtime.validate();
       res.json(runtime.state.snapshot());
     }),
@@ -106,6 +114,7 @@ export function createApp(runtime: Runtime) {
   app.get(
     '/api/storage',
     wrap(async (_req, res) => {
+      runtime.requireRedisConnection();
       runtime.infra.requireRedis();
       res.json(await timeout(inspectStream(runtime.infra.redis), 5000));
     }),

@@ -3,6 +3,7 @@ import { EventEmitter } from 'node:events';
 import { assets, technicians } from './fixtures.js';
 import { config } from '../infrastructure/config.js';
 import type { Snapshot, ExerciseId, Exercise, TelemetryEvent, Journey } from '@fieldops/contracts';
+import { initialRedisConnection } from '../workshop/redis-connection.js';
 
 const titles = [
   'Simpan posisi teknisi',
@@ -15,6 +16,7 @@ export class State {
   bus = new EventEmitter();
   data: Snapshot = {
     labId: config.labId,
+    redisConnection: initialRedisConnection(),
     topic: config.topic,
     groupId: config.groupId,
     assets,

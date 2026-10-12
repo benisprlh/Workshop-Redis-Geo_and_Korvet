@@ -79,6 +79,8 @@ async function change(action) {
   );
   await wait(() => starts() > previous);
   await pause(1000);
+  await wait(async () => (await api('/state')).infra.redis);
+  assert.equal((await api('/workshop/redis/check', 'POST', {})).redisConnection.status, 'passed');
   await wait(async () => (await api('/state')).infra.producer);
 }
 const kafka = new Kafka({
@@ -98,6 +100,8 @@ const kafka = new Kafka({
 const admin = kafka.admin();
 const browsers = [];
 try {
+  await wait(async () => (await api('/state')).infra.redis);
+  await api('/workshop/redis/check', 'POST', {});
   await wait(async () => (await api('/state')).infra.producer);
   assert.ok((await api('/state')).exercises.every((exercise) => exercise.status === 'todo'));
   await change('apply');
