@@ -1,17 +1,31 @@
 import type { Express } from 'express';
 import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { marked, Renderer } from 'marked';
 
 const assets: Record<string, string> = {
   'theme.css': 'apps/api/src/http/guide.css',
   'copy.js': 'apps/api/src/http/guide-copy.js',
   'workshop.png': 'apps/web/public/workshop.png',
+  'workshop-architecture.png': 'apps/web/public/diagrams/workshop-architecture.png',
+  'korvet-telemetry.png': 'apps/web/public/diagrams/korvet-telemetry.png',
   'jakarta-locations.json': 'apps/api/src/operations/jakarta-locations.json',
   'korvet-LICENSE.txt': 'licenses/korvet-LICENSE.txt',
 };
-const projectRoot = () =>
-  process.cwd().endsWith('/apps/api') ? resolve(process.cwd(), '../..') : process.cwd();
+const projectRoot = () => {
+  // Panduan mengikuti checkout yang sama dengan .env; edit README/gambar cukup dimuat ulang.
+  const environmentFile = process.env.WORKSHOP_ENV_FILE;
+  if (environmentFile) {
+    const workspace = dirname(resolve(environmentFile));
+    if (
+      existsSync(resolve(workspace, 'README.md')) &&
+      existsSync(resolve(workspace, 'apps/api/src/http/guide.css'))
+    )
+      return workspace;
+  }
+  return process.cwd().endsWith('/apps/api') ? resolve(process.cwd(), '../..') : process.cwd();
+};
 const escape = (value: string) =>
   value
     .replaceAll('&', '&amp;')
@@ -57,6 +71,7 @@ export function registerGuides(app: Express): void {
       res.status(404).json({ error: 'Lampiran tidak ditemukan.' });
       return;
     }
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(resolve(projectRoot(), assets[req.params.asset]));
   });
   // Tautan lama diarahkan ke satu sumber panduan yang dipelihara.
@@ -70,6 +85,7 @@ export function registerGuides(app: Express): void {
       const source = await readFile(resolve(projectRoot(), 'README.md'), 'utf8');
       const content = await marked(source, { renderer });
       res
+        .set('Cache-Control', 'no-cache')
         .type('html')
         .send(
           `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FieldOps · Panduan workshop</title><link rel="stylesheet" href="/api/guide/theme.css"><script defer src="/api/guide/copy.js"></script></head><body><header><div><strong>FieldOps</strong><a href="/#overview">Kembali ke konsol</a></div></header><main>${content}</main></body></html>`,

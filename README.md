@@ -2,6 +2,10 @@
 
 Praktikum penugasan teknisi terdekat dengan **Redis Geospatial** dan monitoring sensor dengan **Korvet + Redis Streams**. Aplikasi dan layanan lab sudah disiapkan instruktur. Peserta mengisi empat fungsi pada dua file backend, lalu menguji hasilnya melalui FieldOps. Alokasi waktu: 60–90 menit.
 
+[![Arsitektur FieldOps: web, backend, Korvet, dan Redis Enterprise](apps/web/public/diagrams/workshop-architecture.png)](apps/web/public/diagrams/workshop-architecture.png)
+
+Klik diagram untuk melihat ukuran penuh.
+
 | Akses    | Alamat                              |
 | -------- | ----------------------------------- |
 | FieldOps | **https://localhost:3000**          |
@@ -129,11 +133,7 @@ GEOSEARCH fieldops:fieldops-demo:technicians:geo FROMLONLAT 106.8167439 -6.17116
 
 Alur yang digunakan dalam latihan:
 
-```text
-Simulator backend → KafkaJS producer → Korvet → KafkaJS consumer → SSE → dashboard FieldOps
-                                         ↕
-                                   Redis Streams
-```
+[![Alur telemetry: producer mengirim ke Korvet, consumer melakukan fetch ke Korvet, dan Korvet mengakses Redis Streams](apps/web/public/diagrams/korvet-telemetry.png)](apps/web/public/diagrams/korvet-telemetry.png)
 
 Korvet menyediakan antarmuka kompatibel Kafka dengan Redis Streams sebagai penyimpanan. **Producer dan consumer KafkaJS sama-sama terhubung ke Korvet** melalui alamat `KAFKA_BROKERS`. Producer mengirim record ke **topic** telemetry; consumer melakukan subscribe dan fetch ke Korvet untuk membaca record. Korvet yang menulis dan membaca Redis Streams. **Consumer group** menyimpan posisi baca. Lab memakai satu topic dengan satu partition, serta satu consumer dashboard per instance backend.
 

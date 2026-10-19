@@ -179,8 +179,15 @@ try {
         await guide.locator('pre code').first().textContent(),
       );
       assert.equal(await guide.locator('pre').count(), await guide.locator('.copy-code').count());
-      await guide.locator('img').waitFor();
+      await guide.locator('img').first().waitFor();
       await guide.waitForFunction(() => document.querySelector('img')?.naturalWidth > 0);
+      for (const filename of ['workshop-architecture.png', 'korvet-telemetry.png']) {
+        const diagram = guide.locator(`img[src="/api/guide/${filename}"]`);
+        assert.equal(await diagram.count(), 1);
+        await diagram.evaluate((img) => img.decode());
+        assert.equal(await diagram.evaluate((img) => img.naturalWidth), 2600);
+        assert.equal(await diagram.locator('..').getAttribute('href'), `/api/guide/${filename}`);
+      }
       const license = await guide.request.get(`${url}/api/guide/korvet-LICENSE.txt`);
       assert.equal(license.status(), 200);
       assert.match(await license.text(), /Copyright \(c\) Redis Ltd/);
