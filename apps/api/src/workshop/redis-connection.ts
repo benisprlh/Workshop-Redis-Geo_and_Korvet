@@ -26,7 +26,7 @@ function failureMessage(error: unknown, phase: string): string {
   if (/NOPERM|permission|not allowed/i.test(message))
     return 'Izin ACL belum cukup. Akun perlu PING, SET, GET, dan DEL pada fieldops:<LAB_ID>:check:*.';
   if (/CERT|TLS|SSL|certificate|self.signed/i.test(code + message))
-    return 'TLS gagal. Gunakan rediss://, CA yang benar, hostname sesuai sertifikat, dan cert/key client jika mutual TLS diwajibkan.';
+    return 'TLS gagal. Periksa skema rediss:// dan pengaturan koneksi database dari instruktur.';
   if (/ENOTFOUND|EAI_AGAIN/.test(code))
     return 'Hostname Redis tidak ditemukan. Periksa endpoint database dan akses DNS/VPN dari backend.';
   if (/ECONNREFUSED|ETIMEDOUT|EHOSTUNREACH|ENETUNREACH|socket|timeout|waktu/i.test(code + message))

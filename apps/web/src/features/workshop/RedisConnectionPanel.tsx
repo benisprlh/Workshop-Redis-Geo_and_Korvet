@@ -78,14 +78,14 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
             <strong>Isi endpoint database</strong>
             <p>
               Ubah REDIS_URL di .env sesuai endpoint, port, dan akun Redis Enterprise dari
-              instruktur. Redis lokal bawaan hanya koneksi awal; latihan memerlukan endpoint lain.
+              instruktur. Gunakan redis:// atau rediss:// sesuai koneksi database yang disediakan.
             </p>
           </li>
           <li>
-            <strong>Terapkan konfigurasi backend</strong>
+            <strong>Simpan .env</strong>
             <p>
-              Jalankan ulang layanan dengan perintah Compose sesuai mode lab pada panduan. Perubahan
-              .env memerlukan recreate container.
+              Tekan Periksa koneksi Redis setelah menyimpan. Backend membaca ulang .env dan
+              mengganti sambungan yang berubah melalui pemeriksaan ini.
             </p>
           </li>
           <li>
@@ -96,17 +96,6 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
             </p>
           </li>
         </ol>
-      </details>
-      <details className="connection-tls">
-        <summary>Konfigurasi TLS dan sertifikat</summary>
-        <p>
-          Gunakan rediss:// untuk TLS. Jika memakai CA privat, isi REDIS_CA_FILE. Mutual TLS memakai
-          REDIS_CLIENT_CERT_FILE dan REDIS_CLIENT_KEY_FILE. Sertifikat berada di backend.
-        </p>
-        <p>
-          CA: {endpoint.caConfigured ? 'Dikonfigurasi' : 'Trust store sistem'} · Sertifikat client:{' '}
-          {endpoint.clientCertificateConfigured ? 'Dikonfigurasi' : 'Tidak dikonfigurasi'}
-        </p>
       </details>
       <div className="connection-checks" aria-label="Hasil pemeriksaan koneksi">
         {(

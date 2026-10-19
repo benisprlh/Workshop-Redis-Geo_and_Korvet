@@ -17,8 +17,6 @@ export function readRedisSettings(environment: NodeJS.ProcessEnv) {
     database: 0,
     tls: false,
     credentialsConfigured: false,
-    caConfigured: Boolean(caFile),
-    clientCertificateConfigured: Boolean(certFile && keyFile),
   };
   let issue: string | undefined;
   let options: RedisClientOptions | undefined;
@@ -49,7 +47,7 @@ export function readRedisSettings(environment: NodeJS.ProcessEnv) {
   } catch {
     issue = url
       ? 'REDIS_URL tidak valid. Gunakan redis:// atau rediss:// dengan hostname dan port database. Encode karakter khusus pada username/password.'
-      : 'REDIS_URL belum diisi. Isi endpoint database Redis di .env, terapkan ulang konfigurasi backend, lalu periksa koneksi.';
+      : 'REDIS_URL belum diisi. Isi endpoint database Redis di .env, simpan, lalu tekan Periksa koneksi Redis.';
   }
   if (
     !issue &&

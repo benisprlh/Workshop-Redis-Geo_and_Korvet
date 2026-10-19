@@ -58,8 +58,11 @@ services:
       KAFKA_USERNAME: ${KAFKA_USERNAME:-}
       KAFKA_PASSWORD: ${KAFKA_PASSWORD:-}
       API_PORT: '3001'
+      WORKSHOP_ENV_FILE: /workshop-config/.env
     ports: ['127.0.0.1:${API_PORT:-3001}:3001']
     volumes:
+      # Mount direktori agar save atomik .env tetap terbaca tanpa recreate container.
+      - ./:/workshop-config:ro
       - ./apps/api/src:/app/apps/api/src
       - ./.workshop-backups:/app/.workshop-backups
       - ./infra/certificates:/app/certs:ro

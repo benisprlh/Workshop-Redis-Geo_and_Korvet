@@ -3,11 +3,12 @@ import type { Consumer } from 'kafkajs';
 import { saveTechnicianPosition, findNearbyTechnicians } from '../labs/geo.js';
 import { publishTelemetry, consumeTelemetry } from '../labs/korvet.js';
 import { config } from '../infrastructure/config.js';
+import { readRedisEnvironment } from '../infrastructure/redis-environment.js';
 import { Infrastructure, makeConsumer } from '../infrastructure/clients.js';
 import { State } from './state.js';
 import { resetLabData } from './reset-data.js';
 import { Validator } from '../workshop/validator.js';
-import { checkRedisConnection } from '../workshop/redis-connection.js';
+import { checkRedisConnection, initialRedisConnection } from '../workshop/redis-connection.js';
 import { assets } from './fixtures.js';
 import { storedEvent } from '../infrastructure/stream-storage.js';
 import { ApiError, InfrastructureError, safeMessage, timeout } from '../shared/errors.js';
@@ -75,26 +76,54 @@ export class Runtime {
       throw new ApiError(409, 'Tunggu pemeriksaan yang sedang berjalan.');
     this.state.data.redisConnection.status = 'checking';
     this.state.emit();
-    const connection = await checkRedisConnection();
-    if (connection.status === 'passed') {
-      try {
-        await this.infra.connectRedis();
-      } catch {
-        connection.status = 'failed';
-        connection.message =
-          'Koneksi utama Redis belum siap. Periksa endpoint dan jaringan, lalu periksa koneksi kembali.';
+    try {
+      const settings = readRedisEnvironment();
+      if (JSON.stringify(settings) !== JSON.stringify(config.redis)) {
+        this.stopSimulator();
+        await this.stopConsumer();
+        await this.infra.resetRedis();
+        config.redis = settings;
+        this.state.clearData();
+        delete this.state.data.simulator.error;
+        for (const exercise of this.state.data.exercises) {
+          exercise.status = 'dependency';
+          exercise.message = 'Koneksi Redis berubah. Periksa latihan kembali pada endpoint ini.';
+          delete exercise.checkedAt;
+        }
       }
+      this.state.data.redisConnection = { ...initialRedisConnection(), status: 'checking' };
+      this.state.emit();
+      const connection = await checkRedisConnection();
+      if (connection.status === 'passed') {
+        try {
+          await this.infra.connectRedis();
+        } catch {
+          connection.status = 'failed';
+          connection.message =
+            'Koneksi utama Redis belum siap. Periksa endpoint dan jaringan, lalu periksa koneksi kembali.';
+        }
+      }
+      this.state.data.redisConnection = connection;
+      if (connection.status === 'passed') {
+        this.infra.enableStreaming();
+        this.state.activity('Koneksi Redis terverifikasi. Empat latihan siap diperiksa.');
+      } else {
+        this.stopSimulator();
+        await this.stopConsumer();
+        await this.infra.resetRedis();
+      }
+    } catch {
+      this.state.data.redisConnection = {
+        ...initialRedisConnection(),
+        status: 'failed',
+        checkedAt: new Date().toISOString(),
+        message: 'Koneksi belum dapat diperbarui. Periksa .env dan jaringan, lalu periksa kembali.',
+      };
+    } finally {
+      this.state.emit();
     }
-    this.state.data.redisConnection = connection;
-    if (this.state.data.redisConnection.status === 'passed') {
-      this.infra.enableStreaming();
-      this.state.activity('Koneksi Redis terverifikasi. Empat latihan siap diperiksa.');
-    } else {
-      this.stopSimulator();
-      await this.stopConsumer();
-    }
-    this.state.emit();
   }
+
   async validate(): Promise<void> {
     if (this.state.data.redisConnection.status !== 'passed') {
       const disconnected = this.state.data.redisConnection.status === 'failed';

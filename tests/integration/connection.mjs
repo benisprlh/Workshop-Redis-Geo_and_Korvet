@@ -1,4 +1,14 @@
-import { cp, copyFile, mkdir, mkdtemp, rm, symlink, writeFile, chmod } from 'node:fs/promises';
+import {
+  cp,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  rm,
+  symlink,
+  writeFile,
+  chmod,
+  rename,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -246,7 +256,8 @@ try {
   assert.equal(state.redisConnection.status, 'passed', state.redisConnection.message);
   assert.deepEqual(state.redisConnection.checks, { ping: true, writeRead: true, cleanup: true });
   assert.equal(state.redisConnection.endpoint.tls, true);
-  assert.equal(state.redisConnection.endpoint.clientCertificateConfigured, true);
+  assert.equal('caConfigured' in state.redisConnection.endpoint, false);
+  assert.equal('clientCertificateConfigured' in state.redisConnection.endpoint, false);
   const observer = createClient({
     url: environment.REDIS_URL,
     socket: {
@@ -269,6 +280,76 @@ try {
   assert.deepEqual(
     starter.exercises.map((e) => e.status),
     ['todo', 'dependency', 'todo', 'todo'],
+  );
+  // Perubahan file dibaca oleh tombol UI yang sama, dalam proses API yang tetap berjalan.
+  const liveFile = resolve(fixture, '.env');
+  const apiPid = child.pid;
+  const starts = () => output.split(`FieldOps API pada port ${port}`).length - 1;
+  const beforeReload = starts();
+  async function saveConnection(url) {
+    await writeFile(
+      liveFile + '.new',
+      `REDIS_URL='${url}'\nREDIS_CONNECT_TIMEOUT_MS=1500\nLAB_ID=ignored-file-change\n`,
+    );
+    await rename(liveFile + '.new', liveFile); // Editor sering menyimpan melalui rename atomik.
+  }
+  const invalidPassword = new URL(environment.REDIS_URL);
+  invalidPassword.password = 'reload-private-password';
+  await saveConnection(invalidPassword.toString());
+  assert.equal((await api('/state')).redisConnection.status, 'passed');
+  const rejected = await api('/workshop/redis/check', 'POST');
+  assert.equal(rejected.redisConnection.status, 'failed');
+  assert.match(rejected.redisConnection.message, /Autentikasi ditolak/);
+  assert.equal(rejected.infra.redis, false);
+  assert.equal(rejected.infra.producer, false);
+  assert.equal(rejected.infra.consumer, false);
+  assert.ok(rejected.exercises.every((exercise) => exercise.status !== 'passed'));
+  assert.doesNotMatch(JSON.stringify(rejected), /reload-private-password|fieldops-test-password/);
+  await saveConnection('');
+  const emptyLive = await api('/workshop/redis/check', 'POST');
+  assert.equal(emptyLive.redisConnection.status, 'failed');
+  assert.match(emptyLive.redisConnection.message, /REDIS_URL belum diisi/);
+  await saveConnection(environment.REDIS_URL);
+  const restored = await api('/workshop/redis/check', 'POST');
+  assert.equal(restored.redisConnection.status, 'passed', restored.redisConnection.message);
+  assert.equal(restored.labId, labId, 'Reload koneksi tidak mengganti namespace instance.');
+  await observer.connect();
+  const secondDatabase = new URL(environment.REDIS_URL);
+  secondDatabase.pathname = '/1';
+  await saveConnection(secondDatabase.toString());
+  const switched = await api('/workshop/redis/check', 'POST');
+  assert.equal(switched.redisConnection.status, 'passed', switched.redisConnection.message);
+  assert.equal(switched.redisConnection.endpoint.database, 1);
+  const clientsInDb1 = async () =>
+    String(await observer.sendCommand(['CLIENT', 'LIST']))
+      .split('\n')
+      .filter((line) => /\bdb=1\b/.test(line));
+  assert.equal((await clientsInDb1()).length, 1, 'Satu client utama API memakai database baru.');
+  await observer.select(1);
+  for await (const key of observer.scanIterator({ MATCH: `fieldops:${labId}:check:*` }))
+    assert.fail(`Fixture koneksi tertinggal pada database baru: ${key}`);
+  await observer.select(0);
+  await saveConnection(environment.REDIS_URL);
+  assert.equal((await api('/workshop/redis/check', 'POST')).redisConnection.status, 'passed');
+  assert.equal((await clientsInDb1()).length, 0, 'Client database sebelumnya harus ditutup.');
+  await rename(liveFile, liveFile + '.missing');
+  const missingFile = await api('/workshop/redis/check', 'POST');
+  assert.equal(missingFile.redisConnection.status, 'failed');
+  assert.match(missingFile.redisConnection.message, /File .env tidak dapat dibaca/);
+  await rename(liveFile + '.missing', liveFile);
+  assert.equal((await api('/workshop/redis/check', 'POST')).redisConnection.status, 'passed');
+  const repeated = await Promise.all([
+    fetch(`${base}/api/workshop/redis/check`, { method: 'POST' }),
+    fetch(`${base}/api/workshop/redis/check`, { method: 'POST' }),
+  ]);
+  assert.deepEqual(repeated.map((response) => response.status).sort(), [200, 409]);
+  await Promise.all(repeated.map((response) => response.arrayBuffer()));
+  assert.equal(child.pid, apiPid);
+  assert.equal(child.exitCode, null);
+  assert.equal(starts(), beforeReload, 'Tidak ada restart API selama pergantian koneksi.');
+  await observer.disconnect();
+  console.log(
+    'LULUS: save atomik .env dibaca dari Periksa koneksi, password salah/kosong/file hilang ditolak, database berganti dan client lama ditutup, namespace tetap, klik bersamaan ditolak, tanpa restart API.',
   );
   await api('/data/reset', 'POST', { confirm: labId });
   await stop();

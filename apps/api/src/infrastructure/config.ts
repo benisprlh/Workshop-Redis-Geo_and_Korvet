@@ -1,7 +1,7 @@
 import { config as loadEnv } from 'dotenv';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { readRedisSettings } from './redis-settings.js';
+import { readRedisEnvironment } from './redis-environment.js';
 loadEnv({
   path: resolve(process.cwd(), process.cwd().endsWith('/apps/api') ? '../../.env' : '.env'),
 });
@@ -23,7 +23,7 @@ export const config = {
   labId,
   topic,
   groupId,
-  redis: readRedisSettings(process.env),
+  redis: readRedisEnvironment(),
   brokers: (process.env.KAFKA_BROKERS || 'localhost:9092')
     .split(',')
     .map((s) => s.trim())

@@ -360,7 +360,7 @@ export default function WorkshopDrawer({
                 ? 'Koneksi terverifikasi. Lanjutkan empat latihan backend.'
                 : state.redisConnection.status === 'local'
                   ? 'Ganti REDIS_URL ke endpoint instruktur untuk membuka latihan.'
-                  : 'Terapkan .env di backend, lalu periksa koneksi.'
+                  : 'Simpan .env, lalu tekan Periksa koneksi Redis.'
               : connectionReady
                 ? 'Simpan perubahan di editor, lalu periksa latihan.'
                 : 'Periksa koneksi Redis terlebih dahulu sebelum validasi latihan.'}

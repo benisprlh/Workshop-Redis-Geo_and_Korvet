@@ -98,6 +98,7 @@ export class Infrastructure {
   korvetReady = false;
   producerReady = false;
   private connecting?: Promise<void>;
+  private resetting?: Promise<void>;
   private closed = false;
   private timer?: ReturnType<typeof setInterval>;
   private streamingEnabled = false;
@@ -111,14 +112,17 @@ export class Infrastructure {
     if (this.redisClient) return this.redisClient;
     const redis = makeRedis(true);
     redis.on('ready', () => {
+      if (this.redisClient !== redis) return;
       this.redisReady = true;
       this.changed();
     });
     redis.on('error', () => {
+      if (this.redisClient !== redis) return;
       this.redisReady = false;
       this.changed();
     });
     redis.on('end', () => {
+      if (this.redisClient !== redis) return;
       this.redisReady = false;
       this.changed();
     });
@@ -151,7 +155,8 @@ export class Infrastructure {
     void this.refresh();
   }
   async refresh(): Promise<void> {
-    if (this.closed || this.connecting) return this.connecting;
+    if (this.closed || this.resetting) return;
+    if (this.connecting) return this.connecting;
     this.connecting = (async () => {
       if (this.streamingEnabled)
         try {
@@ -189,9 +194,29 @@ export class Infrastructure {
         'Korvet tidak tersambung. Periksa KAFKA_BROKERS dan KORVET_BROKER_ADVERTISED_HOST.',
       );
   }
+  /** Tutup client endpoint sebelumnya sebelum konfigurasi Redis diganti dari UI. */
+  async resetRedis(): Promise<void> {
+    if (this.resetting) return this.resetting;
+    this.resetting = (async () => {
+      this.streamingEnabled = false;
+      await this.connecting?.catch(() => {});
+      await this.producer.disconnect().catch(() => {});
+      const redis = this.redisClient;
+      this.redisClient = undefined;
+      this.redisReady = false;
+      this.korvetReady = false;
+      this.producerReady = false;
+      if (redis?.isOpen) await redis.disconnect().catch(() => {});
+      this.changed();
+    })().finally(() => {
+      this.resetting = undefined;
+    });
+    await this.resetting;
+  }
   async close(): Promise<void> {
     this.closed = true;
     clearInterval(this.timer);
+    await this.resetting?.catch(() => {});
     await this.connecting?.catch(() => {});
     await this.producer.disconnect().catch(() => {});
     if (this.redisClient?.isOpen) await this.redisClient.disconnect().catch(() => {});

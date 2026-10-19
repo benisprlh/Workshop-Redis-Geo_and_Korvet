@@ -58,4 +58,4 @@ export async function isLocalRedisEndpoint(host: string): Promise<boolean> {
 }
 
 export const localRedisMessage =
-  'Redis lokal adalah koneksi awal. Latihan tetap terkunci. Ganti REDIS_URL di .env ke endpoint Redis lain dari instruktur, terapkan ulang backend, lalu periksa koneksi.';
+  'Redis lokal adalah koneksi awal. Latihan tetap terkunci. Ganti REDIS_URL di .env ke endpoint Redis lain dari instruktur, simpan, lalu tekan Periksa koneksi Redis.';

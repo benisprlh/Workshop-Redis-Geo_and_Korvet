@@ -19,8 +19,6 @@ export interface RedisConnection {
     database: number;
     tls: boolean;
     credentialsConfigured: boolean;
-    caConfigured: boolean;
-    clientCertificateConfigured: boolean;
   };
   message: string;
   checkedAt?: string;

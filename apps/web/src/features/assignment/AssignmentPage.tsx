@@ -29,6 +29,12 @@ export default function AssignmentPage({
     setLatitude(String(selected.latitude));
   }, [selectedId, selected.longitude, selected.latitude]);
   useEffect(() => setSuccess(''), [selectedId]);
+  useEffect(() => {
+    if (!s.positionsReady) {
+      setResults([]);
+      setSearched(false);
+    }
+  }, [s.positionsReady]);
   const connectionReady = s.redisConnection.status === 'passed' && s.infra.redis;
   const saveUnlocked =
     connectionReady && s.exercises.find((e) => e.id === 'GEO-01')?.status === 'passed';

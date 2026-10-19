@@ -12,9 +12,31 @@ Peta menggunakan wilayah nyata di Jakarta Pusat. Identitas aset, teknisi, penemp
 
 ## Koneksi Redis
 
-Di FieldOps, buka **Mode workshop → Koneksi Redis**, lalu tekan **Periksa koneksi Redis**. Lanjutkan ketika status **Terverifikasi**. Jika muncul **Lokal · terkunci** atau pemeriksaan gagal, minta instruktur memeriksa koneksi database lab.
+Hubungkan FieldOps ke database workshop sebelum mengerjakan GEO-01. Alamat UI Redis digunakan untuk mengelola database; nilai `REDIS_URL` memakai endpoint dan port database yang dipilih.
 
-Setiap selesai mengedit kode, simpan file dan tunggu backend tersambung kembali. Periksa koneksi Redis jika diminta, kemudian pilih latihan dan tekan **Periksa latihan**. Pemeriksaan memakai Redis dan Korvet yang sebenarnya; fitur terbuka setelah hasilnya **Lulus**.
+1. Buka **https://redisdc.vtidemo.id:8443**, lalu **login** menggunakan akun UI Redis dari instruktur.
+2. Masuk ke menu **Databases / Database** dan pilih database workshop yang ditentukan instruktur. Database ini juga digunakan Korvet untuk menyimpan telemetry.
+3. Buka **Configuration → General**, lalu salin **endpoint database** beserta portnya. Siapkan username dan password database dari instruktur. Jika UI menyediakan connection URI lengkap, salin URI tersebut.
+4. Buka file **`.env` pada root repository**. Ganti nilai `REDIS_URL` dengan URI yang disalin. Jika yang tersedia hanya `HOST_DATABASE:PORT_DATABASE`, susun URI dengan format berikut:
+
+```dotenv
+REDIS_URL='redis://USERNAME:PASSWORD_DATABASE@HOST_DATABASE:PORT_DATABASE'
+```
+
+Ganti seluruh placeholder dengan detail database. Gunakan username `default` jika menggunakan password only. Karakter khusus pada username atau password perlu di-encode untuk URI, misalnya `@` menjadi `%40`. Jika yang disalin berupa perintah `redis-cli -u ...`, ambil URI setelah `-u` untuk nilai `REDIS_URL`.
+
+Untuk database dengan TLS aktif, gunakan skema `rediss://`:
+
+```dotenv
+REDIS_URL='rediss://USERNAME:PASSWORD_DATABASE@HOST_DATABASE:PORT_DATABASE'
+```
+
+5. Simpan `.env`, lalu buka **https://localhost:3000**. Pilih **Mode workshop → Koneksi Redis** dan tekan **Periksa koneksi Redis**. Tombol ini membaca ulang `.env` dan menerapkan koneksi terbaru. Periksa hostname dan port pada **Endpoint backend**.
+6. Lanjutkan ke **GEO-01** ketika status **Terverifikasi** dan pemeriksaan **PING**, **Baca/tulis**, serta **Cleanup** berhasil. Jika muncul **Lokal · terkunci**, periksa `REDIS_URL` yang disimpan. Jika koneksi gagal, cocokkan endpoint, port, kredensial, dan skema `redis://` atau `rediss://` dengan detail database.
+
+Jika endpoint berubah, simulator dan consumer dihentikan, lalu hasil pemeriksaan latihan dikosongkan untuk koneksi baru. Tekan **Periksa latihan** kembali sebelum melanjutkan kedua kasus. Perubahan `.env` diterapkan melalui UI tanpa menjalankan ulang layanan.
+
+Setiap selesai mengedit kode latihan, simpan file dan tunggu backend tersambung kembali. Periksa koneksi Redis jika diminta, kemudian pilih latihan dan tekan **Periksa latihan**. Pemeriksaan memakai Redis dan Korvet yang sebenarnya; fitur terbuka setelah hasilnya **Lulus**.
 
 ## Kasus 1 — Menentukan teknisi terdekat
 
@@ -212,7 +234,7 @@ Jawaban lengkap tersedia pada `workshop/solutions/geo.solution.ts` dan `workshop
 
 ## Referensi
 
-- Redis: [GEOADD](https://redis.io/docs/latest/commands/geoadd/), [GEOSEARCH](https://redis.io/docs/latest/commands/geosearch/), [Streams](https://redis.io/docs/latest/develop/data-types/streams/), [XLEN](https://redis.io/docs/latest/commands/xlen/), dan [XRANGE](https://redis.io/docs/latest/commands/xrange/).
+- Redis: [koneksi database Enterprise](https://redis.io/docs/latest/operate/rs/databases/connect/), [GEOADD](https://redis.io/docs/latest/commands/geoadd/), [GEOSEARCH](https://redis.io/docs/latest/commands/geosearch/), [Streams](https://redis.io/docs/latest/develop/data-types/streams/), [XLEN](https://redis.io/docs/latest/commands/xlen/), dan [XRANGE](https://redis.io/docs/latest/commands/xrange/).
 - KafkaJS 2.2.4: [producer](https://kafka.js.org/docs/producing) dan [consumer](https://kafka.js.org/docs/consuming).
 - Korvet: [release v0.19.0](https://github.com/redis-field-engineering/korvet-dist/releases/tag/v0.19.0), [README distribusi](https://github.com/redis-field-engineering/korvet-dist/blob/8ef461e8317b2590edfde386ee810154ef7d0971/README.adoc), [contoh kafka-cli](https://github.com/redis-field-engineering/korvet-dist/tree/8ef461e8317b2590edfde386ee810154ef7d0971/samples/kafka-cli), [contoh pacman](https://github.com/redis-field-engineering/korvet-dist/tree/8ef461e8317b2590edfde386ee810154ef7d0971/samples/pacman), [konfigurasi](https://redis-field-engineering.github.io/korvet/0.19/reference/configuration.html), dan [penyimpanan Streams](https://redis-field-engineering.github.io/korvet/0.19/storage/redis-streams.html).
 - Peta: [OpenStreetMap](https://www.openstreetmap.org/copyright) dan [sumber koordinat wilayah](apps/api/src/operations/jakarta-locations.json).
