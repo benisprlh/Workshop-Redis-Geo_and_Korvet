@@ -130,11 +130,14 @@ GEOSEARCH fieldops:fieldops-demo:technicians:geo FROMLONLAT 106.8167439 -6.17116
 Alur yang digunakan dalam latihan:
 
 ```text
-Simulator backend → KafkaJS producer → Korvet → Redis Streams
-                 → KafkaJS consumer → SSE → dashboard FieldOps
+Simulator backend → KafkaJS producer → Korvet → KafkaJS consumer → SSE → dashboard FieldOps
+                                         ↕
+                                   Redis Streams
 ```
 
-Korvet menyediakan antarmuka kompatibel Kafka dengan Redis Streams sebagai penyimpanan. **Producer** mengirim record ke **topic** telemetry. **Consumer** membaca record dari topic tersebut. **Consumer group** menyimpan posisi baca. Lab memakai satu topic dengan satu partition, serta satu consumer dashboard per instance backend.
+Korvet menyediakan antarmuka kompatibel Kafka dengan Redis Streams sebagai penyimpanan. **Producer dan consumer KafkaJS sama-sama terhubung ke Korvet** melalui alamat `KAFKA_BROKERS`. Producer mengirim record ke **topic** telemetry; consumer melakukan subscribe dan fetch ke Korvet untuk membaca record. Korvet yang menulis dan membaca Redis Streams. **Consumer group** menyimpan posisi baca. Lab memakai satu topic dengan satu partition, serta satu consumer dashboard per instance backend.
+
+Panel **Penyimpanan Redis** membaca XLEN/XRANGE langsung dari Redis untuk membuktikan penyimpanan. Data grafik diterima melalui consumer KafkaJS yang terhubung ke Korvet.
 
 File yang dikerjakan: **`apps/api/src/labs/korvet.ts`**. Client, topic, parsing event, dan koneksi dashboard sudah disiapkan.
 
@@ -166,7 +169,7 @@ await producer.send({
 
 **Membaca event untuk dashboard · 10 menit**
 
-Fungsi `consumeTelemetry` menerima consumer KafkaJS, topic, dan callback `onEvent`. Callback meneruskan event valid ke state backend dan browser melalui SSE.
+Fungsi `consumeTelemetry` menerima consumer KafkaJS yang terhubung ke Korvet, topic, dan callback `onEvent`. Callback meneruskan event valid ke state backend dan browser melalui SSE.
 
 1. Pada file yang sama, temukan fungsi `consumeTelemetry`.
 2. Ganti `throw new WorkshopTodoError('KORVET-02');` dengan:
