@@ -1,7 +1,7 @@
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
-const url = process.env.WEB_URL || 'https://localhost:8443';
+const url = process.env.WEB_URL || 'https://localhost:3000';
 await mkdir('test-results/screenshots', { recursive: true });
 const browser = await chromium.launch();
 const context = await browser.newContext({
@@ -169,9 +169,9 @@ try {
       assert.equal(new URL(guide.url()).pathname, '/api/guide');
       await guide.getByRole('heading', { name: 'Koneksi Redis', exact: true }).waitFor();
       const redisUi = guide
-        .getByRole('link', { name: 'https://redisdc.vtidemo.id', exact: true })
+        .getByRole('link', { name: 'https://redisdc.vtidemo.id:8443', exact: true })
         .first();
-      assert.equal(await redisUi.getAttribute('href'), 'https://redisdc.vtidemo.id');
+      assert.equal(await redisUi.getAttribute('href'), 'https://redisdc.vtidemo.id:8443');
       await guide.getByRole('button', { name: 'Salin kode', exact: true }).first().click();
       await guide.getByRole('button', { name: 'Tersalin', exact: true }).waitFor();
       assert.equal(

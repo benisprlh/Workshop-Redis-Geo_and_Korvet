@@ -11,4 +11,4 @@ openssl req -x509 -newkey rsa:2048 -nodes -sha256 -days 365 \
   -keyout /certificates/localhost.key.new -out /certificates/localhost.crt.new 2>/dev/null
 mv /certificates/localhost.key.new /certificates/localhost.key
 mv /certificates/localhost.crt.new /certificates/localhost.crt
-echo 'Sertifikat HTTPS localhost dibuat. UI tersedia pada https://localhost:8443.'
+echo 'Sertifikat HTTPS localhost dibuat.'

@@ -77,7 +77,7 @@ services:
   web:
     image: fieldops-web:1.0.0
     build: { context: ., dockerfile: infra/docker/web.Dockerfile }
-    ports: ['127.0.0.1:${WEB_PORT:-8443}:443']
+    ports: ['127.0.0.1:${WEB_PORT:-3000}:443']
     volumes: ['web-tls:/etc/nginx/tls:ro']
     depends_on:
       api: { condition: service_healthy }

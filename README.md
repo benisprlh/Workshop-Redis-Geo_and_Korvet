@@ -1,144 +1,37 @@
-# FieldOps
+# FieldOps — Workshop Redis
 
-Panduan dry run workshop Redis untuk penugasan teknisi dan monitoring sensor aset. Jalankan langkah secara berurutan dari kondisi starter hingga empat latihan lulus. Alokasi waktu: 60–90 menit.
+Praktikum penugasan teknisi terdekat dengan **Redis Geospatial** dan monitoring sensor dengan **Korvet + Redis Streams**. Aplikasi dan layanan lab sudah disiapkan instruktur. Peserta mengisi empat fungsi pada dua file backend, lalu menguji hasilnya melalui FieldOps. Alokasi waktu: 60–90 menit.
 
-| Akses              | Alamat                           | Kegunaan                                                 |
-| ------------------ | -------------------------------- | -------------------------------------------------------- |
-| FieldOps           | **https://localhost:8443**       | Peta teknisi, simulator, grafik, dan pemeriksaan latihan |
-| UI Redis           | **https://redisdc.vtidemo.id**   | Mengakses console database workshop                      |
-| Panduan di browser | https://localhost:8443/api/guide | Membaca README ini dan menyalin blok kode                |
+| Akses    | Alamat                              |
+| -------- | ----------------------------------- |
+| FieldOps | **https://localhost:3000**          |
+| UI Redis | **https://redisdc.vtidemo.id:8443** |
+| Panduan  | https://localhost:3000/api/guide    |
 
-Aset, teknisi, posisi operasional, dan nilai sensor merupakan data simulasi. Peta menggunakan wilayah nyata di Jakarta Pusat. Seluruh perintah terminal dijalankan dari folder `Workshop-Redis-Geo_and_Korvet`.
-
-## Persiapan
-
-Siapkan Docker dengan Compose ≥2.24.4, browser, editor kode, dan akun database workshop dari instruktur. Database tujuan perlu mendukung GEO, Streams, dan JSON; Korvet memakai JSON untuk metadata topic.
-
-Perintah menggunakan `./scripts/workspace-compose.sh`. Helper menjalankan Docker Compose pada Docker Desktop atau runtime workspace yang sudah tersedia. Gunakan terminal user biasa. Node.js pada host tidak diperlukan untuk mengikuti dry run; backend berjalan di container.
-
-Alur sesi:
-
-1. Jalankan aplikasi dan periksa kondisi awal.
-2. Ganti koneksi Redis lokal ke database workshop.
-3. Jalankan Korvet terhadap database yang sama.
-4. Kerjakan [GEO-01](#geo-01) dan [GEO-02](#geo-02).
-5. Kerjakan [KORVET-01](#korvet-01) dan [KORVET-02](#korvet-02).
-6. Cocokkan hasil pada FieldOps dan UI Redis.
-
-## 1. Menjalankan aplikasi
-
-Siapkan konfigurasi awal:
-
-```bash
-./scripts/workspace-compose.sh version
-test -f .env || cp .env.example .env
-```
-
-Perintah pertama memeriksa Compose; baris kedua menyiapkan `.env` jika belum tersedia. Pastikan `.env` menggunakan `WEB_PORT=8443`. Jika instruktur memberikan `LAB_ID` khusus peserta, isi sebelum startup pertama dan pertahankan sepanjang sesi. Compose, key, topic, dan consumer group menggunakan ID tersebut.
-
-Jalankan layanan:
-
-```bash
-./scripts/workspace-compose.sh up -d --build
-./scripts/workspace-compose.sh ps -a
-```
-
-`up` membangun aplikasi, menjalankan Redis lokal, dan menyiapkan sertifikat HTTPS. Service `certificates` selesai dengan status `Exited (0)`; API dan web tetap berjalan.
-
-Buka **https://localhost:8443**. Sertifikat `localhost` dibuat otomatis dan disimpan dalam volume `web-tls`. Pada akses pertama, browser dapat menampilkan pemberitahuan sertifikat lokal. Pilih **Lanjutan / Advanced**, lalu lanjutkan ke `localhost` untuk sesi ini. Sertifikat tersebut hanya dipakai FieldOps lokal; konfigurasi TLS Redis mengikuti database instruktur.
-
-Buka **Mode workshop → Koneksi Redis**, lalu tekan **Periksa koneksi Redis**. Kondisi awal yang diharapkan:
-
-- Endpoint `redis:6379`, yaitu Redis lokal pada jaringan Compose.
-- PING, baca/tulis, dan cleanup berhasil.
-- Status tetap **Lokal · terkunci**, dengan 0 dari 4 latihan selesai.
-- Simulator belum dapat dimulai dan grafik belum berisi event.
-
-Koneksi lokal sengaja tidak membuka latihan. Aturan ini juga berlaku untuk `localhost`, loopback IPv4/IPv6, alias atau IP container Redis bawaan, dan DNS yang mengarah ke loopback.
+Peta menggunakan wilayah nyata di Jakarta Pusat. Identitas aset, teknisi, penempatan operasional, serta pembacaan sensor merupakan simulasi untuk latihan.
 
 ## Koneksi Redis
 
-**Tahap 2 · 10–15 menit.** Tujuan tahap ini adalah menghubungkan backend ke database workshop yang akan menyimpan lokasi teknisi dan telemetry Korvet.
+Di FieldOps, buka **Mode workshop → Koneksi Redis**, lalu tekan **Periksa koneksi Redis**. Lanjutkan ketika status **Terverifikasi**. Jika muncul **Lokal · terkunci** atau pemeriksaan gagal, minta instruktur memeriksa koneksi database lab.
 
-1. Buka **https://redisdc.vtidemo.id** menggunakan akun dari instruktur.
-2. Pilih database yang digunakan untuk workshop. Catat hostname, port database, username, password, dan ketentuan TLS. Minta parameter tersebut kepada instruktur jika tidak ditampilkan di UI.
-3. Buka `.env` pada root repository. Ganti `REDIS_URL` sesuai database tersebut.
+Setiap selesai mengedit kode, simpan file dan tunggu backend tersambung kembali. Periksa koneksi Redis jika diminta, kemudian pilih latihan dan tekan **Periksa latihan**. Pemeriksaan memakai Redis dan Korvet yang sebenarnya; fitur terbuka setelah hasilnya **Lulus**.
 
-Format konfigurasi untuk database dengan TLS:
+## Kasus 1 — Menentukan teknisi terdekat
 
-```dotenv
-REDIS_URL='rediss://USERNAME:PASSWORD@HOST_DATABASE:PORT'
-REDIS_CA_FILE=
-REDIS_CLIENT_CERT_FILE=
-REDIS_CLIENT_KEY_FILE=
-REDIS_TLS_SERVERNAME=
-REDIS_CONNECT_TIMEOUT_MS=5000
-```
+Terjadi gangguan pada **Aset A-101 di Gambir**. Petugas perlu menemukan teknisi dalam radius tertentu, membandingkan jarak dan keterampilan, lalu memilih teknisi. Ketika posisi teknisi berubah, hasil pencarian harus mengikuti posisi terbaru di Redis.
 
-Ganti `USERNAME`, `PASSWORD`, `HOST_DATABASE`, dan `PORT` dengan nilai database. URL `https://redisdc.vtidemo.id` digunakan untuk akses browser; `REDIS_URL` memerlukan endpoint protokol Redis. Gunakan `redis://` jika instruktur menetapkan koneksi tanpa TLS. Karakter khusus pada username/password harus di-encode, misalnya `@` menjadi `%40`.
+Latihan menggunakan 10 teknisi dan 7 aset di sekitar Jakarta Pusat. Metadata sudah tersedia pada **Penugasan Lapangan**. Marker awal menjadi pratinjau sampai posisi berhasil disimpan melalui fungsi latihan.
 
-Jika database menggunakan CA privat, simpan file instruktur di `infra/certificates/`, lalu sesuaikan:
-
-```dotenv
-REDIS_CA_FILE=/app/certs/ca.pem
-```
-
-Untuk mutual TLS, isi kedua path berikut juga:
-
-```dotenv
-REDIS_CLIENT_CERT_FILE=/app/certs/client.crt
-REDIS_CLIENT_KEY_FILE=/app/certs/client.key
-```
-
-Folder tersebut dimount read-only ke backend dan penghubung Korvet. Rahasia tidak dikirim ke browser. Kosongkan opsi sertifikat yang tidak dibutuhkan database.
-
-Terapkan `.env` yang baru dan periksa koneksi:
-
-```bash
-./scripts/workspace-compose.sh up -d api
-./scripts/workspace-compose.sh exec -T api npm run connection:check
-```
-
-`up -d api` memperbarui environment container. Menyimpan `.env` saja belum mengubah environment backend yang berjalan. Pemeriksaan kemudian membuka koneksi, menjalankan PING, menulis/membaca dua nilai berbeda, dan membersihkan key sementara `fieldops:<LAB_ID>:check:*`.
-
-**Hasil yang diharapkan:** `Koneksi Redis: passed` dan badge **Terverifikasi** pada Mode workshop. PING saja belum cukup; endpoint nonlokal, autentikasi, TLS, baca/tulis, dan cleanup harus berhasil. Endpoint Redis Enterprise dengan IP privat tetap diperbolehkan.
-
-Hentikan placeholder Redis lokal setelah database workshop terverifikasi:
-
-```bash
-./scripts/workspace-compose.sh stop redis
-```
-
-Volume lokal tetap tersimpan. Tahap berikutnya menggunakan database yang baru dikonfigurasi.
-
-## 3. Menjalankan Korvet
-
-Korvet menyediakan antarmuka kompatibel Kafka dan menyimpan record pada Redis Streams. Aplikasi menggunakan KafkaJS untuk berkomunikasi dengan image Korvet resmi.
-
-```bash
-./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/enterprise.yaml --profile streaming up -d --build --wait redis-link korvet api web
-./scripts/workspace-compose.sh ps -a
-```
-
-`redis-link` meneruskan transport Redis, termasuk TLS/mutual TLS, ke endpoint yang sama dengan API. Korvet tetap menjalankan protokol Kafka dan penyimpanan Streams. Profil Enterprise mengecualikan Redis lokal dari startup.
-
-Di **Mode workshop → Infrastruktur lab**, tunggu indikator producer tersambung. Jika API ikut dimulai ulang, tekan **Periksa koneksi Redis** kembali. Topic telemetry memakai satu partition dan nama default `<LAB_ID>-telemetry`; consumer dashboard memakai group `<LAB_ID>-dashboard`.
-
-Topic mengelompokkan event telemetry. Partition menjaga urutan record dalam saluran tersebut; satu partition cukup untuk praktikum ini. Consumer group menyimpan posisi baca agar backend dapat melanjutkan konsumsi.
-
-Jika Korvet sudah disediakan instruktur, isi `KAFKA_BROKERS` pada `.env` dengan endpoint tersebut. Sesuaikan `KAFKA_SSL`, `KAFKA_USERNAME`, dan `KAFKA_PASSWORD` jika diwajibkan instruktur, lalu jalankan API/web saja:
-
-```bash
-./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/external.yaml up -d --build api web
-```
-
-Redis pada `.env` harus menunjuk database tempat Korvet instruktur menyimpan Streams. Untuk Korvet lokal dalam Compose, pertahankan `KAFKA_BROKERS=korvet:9092`; alamat advertised broker tersebut dapat dijangkau container API.
+File yang dikerjakan: **`apps/api/src/labs/geo.ts`**. Pertahankan import dan signature fungsi yang sudah tersedia.
 
 ## GEO-01
 
-**Tahap 4 · Menyimpan posisi teknisi · 10 menit.**
+**Menyimpan dan memperbarui posisi · 10 menit**
 
-Buka `apps/api/src/labs/geo.ts`. Pada fungsi `saveTechnicianPosition`, ganti baris `throw new WorkshopTodoError('GEO-01');` dengan:
+Fungsi `saveTechnicianPosition` menerima client Redis, key index lokasi, ID teknisi, dan koordinat. Hasilnya adalah posisi teknisi yang tersimpan di Redis.
+
+1. Buka `apps/api/src/labs/geo.ts` dan temukan fungsi `saveTechnicianPosition`.
+2. Ganti baris `throw new WorkshopTodoError('GEO-01');` dengan kode berikut:
 
 ```ts
 await redis.geoAdd(key, {
@@ -148,24 +41,21 @@ await redis.geoAdd(key, {
 });
 ```
 
-Fungsi menerima client Redis, key index lokasi, ID teknisi, dan koordinat. `GEOADD` menambahkan member atau memperbarui posisi ID yang sama. Urutan koordinat Redis adalah **longitude, lalu latitude**. Metadata aset berada terpisah dari index teknisi.
+3. Simpan file, lalu buka **Mode workshop → GEO-01 → Periksa latihan**.
+4. Pastikan GEO-01 berstatus **Lulus**. Buka **Penugasan Lapangan** dan pilih marker teknisi; tombol **Perbarui posisi** sudah dapat digunakan.
 
-Simpan file. Tunggu log `FieldOps API pada port 3001` setelah watcher memulai ulang backend, lalu jalankan:
+`GEOADD` menambahkan member baru atau memperbarui posisi member dengan ID yang sama. Urutan koordinat Redis adalah **longitude, lalu latitude**. Index ini berisi teknisi; marker aset disimpan terpisah.
 
-```bash
-./scripts/workspace-compose.sh exec -T api npm run connection:check
-./scripts/workspace-compose.sh exec -T api npm run lab:validate
-```
-
-**Hasil yang diharapkan:** `GEO-01: passed`. Tiga latihan lainnya masih belum diisi. Perintah validasi dapat mengembalikan exit code 1 sampai keempat latihan selesai; baca status setiap ID.
-
-Buka **Penugasan Lapangan**, pilih marker teknisi, dan perhatikan form **Perbarui posisi** yang sudah aktif. Posisi awal disiapkan melalui fungsi yang baru diisi.
+Latihan lain dapat tetap menampilkan **Belum diisi** atau **Dependensi lab belum selesai**. Periksa status GEO-01 untuk tahap ini.
 
 ## GEO-02
 
-**Tahap 5 · Mencari teknisi dalam radius · 10–15 menit.**
+**Mencari teknisi dalam radius · 10–15 menit**
 
-Pada file yang sama, cari fungsi `findNearbyTechnicians`. Ganti `throw new WorkshopTodoError('GEO-02');` dengan:
+Fungsi `findNearbyTechnicians` menerima key index teknisi, titik gangguan, dan radius dalam kilometer. Fungsi mengembalikan daftar ID, jarak, dan koordinat dari Redis, diurutkan dari yang terdekat.
+
+1. Pada file yang sama, temukan fungsi `findNearbyTechnicians`.
+2. Ganti `throw new WorkshopTodoError('GEO-02');` dengan:
 
 ```ts
 // prettier-ignore
@@ -178,41 +68,62 @@ const reply = await redis.sendCommand([
 return parseGeoReply(reply);
 ```
 
-`FROMLONLAT` menentukan pusat gangguan. `BYRADIUS` membatasi pencarian dalam kilometer. `ASC` mengurutkan dari jarak terdekat; `WITHDIST` dan `WITHCOORD` mengembalikan jarak dan posisi. Helper `parseGeoReply` mengubah reply Redis ke bentuk hasil yang digunakan UI.
+3. Simpan, lalu pilih **Mode workshop → GEO-02 → Periksa latihan**.
+4. Pastikan GEO-01 dan GEO-02 berstatus **Lulus**. Tombol **Cari teknisi terdekat** pada Penugasan Lapangan sudah aktif.
 
-Simpan file, tunggu API siap setelah watcher restart, lalu periksa kembali:
+`FROMLONLAT` menentukan pusat pencarian. `BYRADIUS` membatasi area dalam `km`, sedangkan `ASC` mengurutkan hasil berdasarkan jarak. `WITHDIST` dan `WITHCOORD` menyertakan jarak serta posisi. Helper `parseGeoReply` mengubah reply Redis menjadi data yang digunakan UI.
 
-```bash
-./scripts/workspace-compose.sh exec -T api npm run connection:check
-./scripts/workspace-compose.sh exec -T api npm run lab:validate
-```
-
-**Hasil yang diharapkan:** `GEO-01` dan `GEO-02` berstatus `passed`.
+### Buktikan perubahan hasil pencarian
 
 Lakukan percobaan berikut pada **Penugasan Lapangan**:
 
-1. Pilih **Aset A-101 · Gambir**, radius **1 km**, lalu **Cari teknisi terdekat**. Dataset awal menghasilkan T-01 dan T-02, diurutkan menurut jarak.
-2. Ubah radius menjadi **3 km** dan cari kembali. Dataset awal menghasilkan enam teknisi.
-3. Pilih **T-01**, isi longitude `106.8685256` dan latitude `-6.1812095`, lalu **Perbarui posisi**. Koordinat contoh berada di Cempaka Putih.
-4. Ulangi pencarian **1 km** dari Aset A-101. T-01 keluar dari hasil karena posisinya telah berubah di Redis.
-5. Kembalikan T-01 ke longitude `106.8164340`, latitude `-6.1750093` agar dataset siap digunakan lagi.
+| Langkah | Tindakan                                                                                    | Hasil yang diharapkan pada dataset awal          |
+| ------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 1       | Pilih **Aset A-101 · Gambir**, radius **1 km**, lalu **Cari teknisi terdekat**              | T-01 dan T-02, berurutan dari jarak terdekat     |
+| 2       | Pilih salah satu hasil                                                                      | Detail teknisi dan garis penghubung tampil       |
+| 3       | Ubah radius ke **3 km**, lalu cari kembali                                                  | Enam teknisi ditemukan                           |
+| 4       | Pilih T-01, isi longitude `106.8685256` dan latitude `-6.1812095`, lalu **Perbarui posisi** | Posisi T-01 berpindah ke contoh di Cempaka Putih |
+| 5       | Cari kembali dari Aset A-101 dengan radius **1 km**                                         | T-01 keluar dari hasil                           |
+| 6       | Kembalikan T-01 ke longitude `106.8164340` dan latitude `-6.1750093`                        | Posisi awal pulih untuk percobaan berikutnya     |
 
-Jumlah di atas mengikuti dataset awal. Posisi yang sebelumnya sudah diubah akan memengaruhi hasil. Jarak yang ditampilkan adalah jarak geografis; garis peta menghubungkan posisi dan tidak menunjukkan rute jalan.
+Jumlah hasil mengikuti posisi awal. Perubahan posisi sebelumnya akan memengaruhi hasil. Jarak pada aplikasi adalah jarak geografis; garis peta menghubungkan lokasi dan tidak menunjukkan rute jalan atau estimasi waktu tiba.
 
-Untuk pemeriksaan langsung, gunakan CLI atau workbench yang disediakan instruktur. Jika fasilitas tersebut tersedia di **UI Redis**, pilih database yang sama sebelum menjalankan command. Ganti `fieldops-demo` jika `LAB_ID` Anda berbeda:
+Coba juga memilih titik pada peta yang jauh dari kumpulan teknisi dengan radius 1 km. Hasil kosong akan menampilkan **Tidak ada teknisi dalam radius**. Perbesar radius untuk membandingkan hasil.
+
+### Periksa posisi langsung di Redis
+
+Buka **https://redisdc.vtidemo.id:8443** dan pilih database lab. Jika tersedia CLI/workbench, jalankan command berikut di sana; jika tidak, gunakan CLI yang disediakan instruktur. Ganti `fieldops-demo` sesuai **Lab ID** yang ditampilkan pada **Mode workshop → Infrastruktur lab**.
 
 ```redis
 GEOPOS fieldops:fieldops-demo:technicians:geo T-01
 GEOSEARCH fieldops:fieldops-demo:technicians:geo FROMLONLAT 106.8167439 -6.1711625 BYRADIUS 1 km ASC WITHDIST WITHCOORD
 ```
 
-Command pertama membuktikan posisi tersimpan. Command kedua memakai parameter pencarian yang sama dengan aplikasi.
+`GEOPOS` memperlihatkan posisi tersimpan. `GEOSEARCH` menggunakan pusat dan radius yang sama dengan percobaan Aset A-101. Cocokkan ID teknisi, urutan, dan jaraknya dengan hasil FieldOps.
+
+## Kasus 2 — Monitoring sensor aset
+
+**Aset A-101** mengirim temperatur, tegangan, dan arus setiap 2,5 detik. Petugas perlu memantau pembacaan terbaru dan menerima alarm ketika temperatur meningkat atau tegangan turun.
+
+Alur yang digunakan dalam latihan:
+
+```text
+Simulator backend → KafkaJS producer → Korvet → Redis Streams
+                 → KafkaJS consumer → SSE → dashboard FieldOps
+```
+
+Korvet menyediakan antarmuka kompatibel Kafka dengan Redis Streams sebagai penyimpanan. **Producer** mengirim record ke **topic** telemetry. **Consumer** membaca record dari topic tersebut. **Consumer group** menyimpan posisi baca. Lab memakai satu topic dengan satu partition, serta satu consumer dashboard per instance backend.
+
+File yang dikerjakan: **`apps/api/src/labs/korvet.ts`**. Client, topic, parsing event, dan koneksi dashboard sudah disiapkan.
 
 ## KORVET-01
 
-**Tahap 6 · Mengirim telemetry · 10 menit.**
+**Mengirim event sensor · 10 menit**
 
-Buka `apps/api/src/labs/korvet.ts`. Pada fungsi `publishTelemetry`, ganti `throw new WorkshopTodoError('KORVET-01');` dengan:
+Fungsi `publishTelemetry` menerima producer KafkaJS, nama topic, dan satu event sensor. Event memiliki `eventId`, `assetId`, `timestamp`, `temperatureC`, `voltageV`, dan `currentA`.
+
+1. Buka `apps/api/src/labs/korvet.ts` dan temukan fungsi `publishTelemetry`.
+2. Ganti `throw new WorkshopTodoError('KORVET-01');` dengan:
 
 ```ts
 await producer.send({
@@ -221,24 +132,22 @@ await producer.send({
 });
 ```
 
-Producer menerima topic dan satu event sensor. `assetId` menjadi key record; payload diserialisasi sebagai JSON. KafkaJS mengirim record ke Korvet, kemudian Korvet menyimpannya pada Redis Streams.
+3. Simpan, lalu pilih **Mode workshop → KORVET-01 → Periksa latihan**. Pastikan status **Lulus**.
+4. Buka **Monitoring Aset**, pilih **Aset A-101** dan skenario **Normal**, lalu tekan **Mulai simulasi**.
+5. Tunggu sekitar 5 detik, lalu tekan **Hentikan simulasi**. Buka **Penyimpanan Redis** dan tekan **Perbarui**.
 
-Simpan file, tunggu API siap setelah watcher restart, lalu periksa:
+`assetId` menjadi key record, sedangkan `JSON.stringify(event)` menyiapkan payload JSON. KafkaJS mengirimnya ke Korvet dan Korvet menyimpan record pada Redis Streams.
 
-```bash
-./scripts/workspace-compose.sh exec -T api npm run connection:check
-./scripts/workspace-compose.sh exec -T api npm run lab:validate
-```
-
-**Hasil yang diharapkan:** `KORVET-01: passed`. Buka **Monitoring Aset**, pilih Aset A-101, pilih skenario **Normal**, lalu **Mulai simulasi**. Tunggu sekitar 5 detik, kemudian **Hentikan simulasi**.
-
-Buka panel **Penyimpanan Redis**. Periksa stream key, XLEN, dan eventId pada entri tersimpan. Grafik masih menunggu consumer karena KORVET-02 belum selesai. Keberhasilan producer membuktikan pengiriman; dashboard menerima event melalui consumer pada tahap berikutnya.
+**Hasil yang diperiksa:** stream key aktual tampil, XLEN bertambah, dan entri memuat `eventId`. Grafik masih terkunci sampai KORVET-02 lulus. Pengiriman berhasil belum membuktikan event sudah diterima consumer.
 
 ## KORVET-02
 
-**Tahap 7 · Mengonsumsi telemetry · 10 menit.**
+**Membaca event untuk dashboard · 10 menit**
 
-Pada file `apps/api/src/labs/korvet.ts`, cari fungsi `consumeTelemetry`. Ganti `throw new WorkshopTodoError('KORVET-02');` dengan:
+Fungsi `consumeTelemetry` menerima consumer KafkaJS, topic, dan callback `onEvent`. Callback meneruskan event valid ke state backend dan browser melalui SSE.
+
+1. Pada file yang sama, temukan fungsi `consumeTelemetry`.
+2. Ganti `throw new WorkshopTodoError('KORVET-02');` dengan:
 
 ```ts
 await consumer.subscribe({ topic, fromBeginning: true });
@@ -250,41 +159,32 @@ await consumer.run({
 });
 ```
 
-`subscribe` memilih topic. `run` memulai konsumsi melalui `eachMessage`. Helper memvalidasi payload, kemudian callback `onEvent` memperbarui state backend dan mengirim pembaruan SSE ke browser. Backend mengelola satu consumer dashboard per instance.
+3. Simpan, lalu pilih **Mode workshop → KORVET-02 → Periksa latihan**.
+4. Pastikan keempat latihan berstatus **Lulus** dan progress menunjukkan **4 dari 4**. Tunggu beberapa detik sampai indikator **Consumer berjalan** tampil.
+5. Buka **Monitoring Aset**, pilih Aset A-101, lalu jalankan skenario **Normal** selama 10 detik.
 
-Simpan file, tunggu API siap setelah watcher restart, lalu jalankan pemeriksaan akhir:
+`subscribe` menentukan topic yang dibaca. `run` memulai konsumsi dan memanggil `eachMessage` untuk setiap record. `parseTelemetry` memvalidasi payload sebelum diteruskan ke `onEvent`. `fromBeginning: true` berlaku saat group belum memiliki offset tersimpan; consumer melanjutkan dari offset group yang sudah ada.
 
-```bash
-./scripts/workspace-compose.sh exec -T api npm run connection:check
-./scripts/workspace-compose.sh exec -T api npm run lab:validate
-```
+**Hasil yang diperiksa:** jumlah event diterima bertambah, grafik temperatur dan tegangan terisi, serta baris **Event terbaru** muncul. Pilih satu baris untuk memeriksa **Perjalanan event**: **Dikirim → Tersimpan → Diterima consumer**.
 
-**Hasil yang diharapkan:** keempat ID berstatus `passed`, progress **4 dari 4**, dan indikator consumer aktif. Jika consumer masih bergabung dengan group, tunggu beberapa detik.
+### Uji skenario dan alarm
 
-Alur data yang digunakan:
+Pada **Monitoring Aset**, jalankan skenario berikut satu per satu. Tekan **Hentikan simulasi** sebelum mengganti skenario.
 
-```text
-Simulator backend → KafkaJS producer → Korvet → Redis Streams
-                 → KafkaJS consumer → SSE → dashboard FieldOps
-```
+| Skenario             | Durasi percobaan | Hasil yang diperiksa                                |
+| -------------------- | ---------------- | --------------------------------------------------- |
+| Normal               | 10 detik         | Temperatur sekitar 64 °C dan tegangan sekitar 228 V |
+| Temperatur meningkat | 15–20 detik      | Temperatur melewati 80 °C; alarm temperatur muncul  |
+| Tegangan turun       | 10–15 detik      | Tegangan di bawah 210 V; alarm tegangan muncul      |
 
-## 8. Memeriksa monitoring dan alarm
+Semua pembacaan dan threshold merupakan simulasi. Grafik hanya memakai event yang telah dikonsumsi. Tampilan menggunakan `eventId` untuk mengurangi duplikasi ketika record terbaca ulang; alur ini tidak menjanjikan exactly-once delivery.
 
-Pada **Monitoring Aset**, pilih Aset A-101 dan jalankan skenario berikut satu per satu. Hentikan simulator sebelum mengganti skenario.
+### Cocokkan event dengan Redis Streams
 
-| Skenario             | Durasi percobaan | Hasil yang diperiksa                                                      |
-| -------------------- | ---------------- | ------------------------------------------------------------------------- |
-| Normal               | 10 detik         | Temperatur sekitar 64 °C, tegangan sekitar 228 V, event diterima consumer |
-| Temperatur meningkat | 15–20 detik      | Temperatur melewati 80 °C dan alarm temperatur muncul                     |
-| Tegangan turun       | 10–15 detik      | Tegangan di bawah 210 V dan alarm tegangan muncul                         |
-
-Seluruh nilai dan threshold merupakan simulasi. Grafik hanya menggunakan event yang sudah diterima consumer. Pada perjalanan event, cocokkan status dikirim, tersimpan, dan diterima. Tampilan memakai eventId untuk mengurangi duplikasi jika record terbaca ulang; aplikasi tidak menjanjikan exactly-once delivery.
-
-Pada **Penyimpanan Redis**, salin stream key aktual dan satu eventId. Buka **https://redisdc.vtidemo.id** dan pastikan database yang dipilih sesuai endpoint FieldOps. Jika tersedia browser key atau workbench, gunakan untuk memeriksa stream tersebut. Panel FieldOps juga membaca bukti penyimpanan langsung dari Redis.
-
-Pada konfigurasi Korvet yang dipin, stream pertama biasanya berformat `korvet:storage:local:<LAB_ID>-telemetry:0:0`; gunakan key yang benar-benar ditampilkan panel. Command berikut dapat dijalankan pada CLI/workbench instruktur.
-
-Contoh untuk `LAB_ID=fieldops-demo`:
+1. Hentikan simulator agar pembacaan mudah dibandingkan.
+2. Pada **Event terbaru**, pilih satu event dan catat `eventId` lengkap dari tooltip ID.
+3. Buka **Penyimpanan Redis**, tekan **Perbarui**, lalu cari `eventId` yang sama. Buka detail entri untuk membandingkan `assetId`, temperatur, tegangan, dan timestamp.
+4. Untuk pemeriksaan di luar aplikasi, gunakan CLI/workbench pada database lab. Salin **stream key aktual** dari panel. Contoh berikut berlaku jika key yang tampil persis `korvet:storage:local:fieldops-demo-telemetry:0:0`:
 
 ```redis
 XLEN korvet:storage:local:fieldops-demo-telemetry:0:0
@@ -292,98 +192,30 @@ XREVRANGE korvet:storage:local:fieldops-demo-telemetry:0:0 + - COUNT 5
 XRANGE korvet:storage:local:fieldops-demo-telemetry:0:0 - + COUNT 5
 ```
 
-`XLEN` menunjukkan panjang stream. `XREVRANGE` mengambil lima entri terbaru; `XRANGE` mengambil lima entri dari awal. Cocokkan eventId pada record terbaru dengan event yang tampil di FieldOps. Panel aplikasi menemukan key aktual dan menampilkan beberapa entri tanpa memerlukan peserta menebak struktur internal Korvet.
+`XLEN` menghitung entri. `XREVRANGE` memperlihatkan lima entri terbaru, sedangkan `XRANGE` memperlihatkan lima entri dari awal stream. Jika key pada panel berbeda, gunakan key tersebut pada ketiga command. Cocokkan `eventId` pada payload dengan event FieldOps.
 
-## Jawaban, reset, dan akhir sesi
+## Pemeriksaan akhir
 
-Jika perlu melewati pengisian manual saat demonstrasi, terapkan dua jawaban sekaligus:
+Sesi selesai ketika peserta dapat menunjukkan:
 
-```bash
-./scripts/workspace-compose.sh exec -T api npm run solution:apply -- all
-```
+- Posisi teknisi tersimpan dan perubahan posisi mengubah hasil pencarian radius.
+- Hasil pencarian berasal dari Redis dan berurutan menurut jarak.
+- Event dari producer tersimpan di Redis Streams dengan `eventId` yang dapat dicocokkan.
+- Consumer memperbarui grafik, tabel event, dan alarm sesuai skenario.
+- Empat latihan berstatus **Lulus** pada Mode workshop.
 
-Tunggu log API siap setelah watcher restart, kemudian jalankan:
+Jika hasil belum sesuai, buka latihan terkait pada **Mode workshop**. **Petunjuk 1** menjelaskan konsep, **Petunjuk 2** menjelaskan API dan parameter, dan **Petunjuk 3** memberikan pseudocode parsial. Pesan hasil pemeriksaan menunjukkan apakah kode perlu diperbaiki, latihan lain belum selesai, atau koneksi infrastruktur bermasalah.
 
-```bash
-./scripts/workspace-compose.sh exec -T api npm run connection:check
-./scripts/workspace-compose.sh exec -T api npm run lab:validate
-```
+Jawaban lengkap tersedia pada `workshop/solutions/geo.solution.ts` dan `workshop/solutions/korvet.solution.ts`. Gunakan sebagai pembanding atau salin isi fungsi yang diperlukan ke file latihan, simpan, lalu ulangi **Periksa latihan**.
 
-Perintah membuat backup edit peserta di `.workshop-backups/` sebelum menimpa file. Gunakan `-- geo` atau `-- korvet` untuk satu modul. Jawaban sumber tersedia di `workshop/solutions/`; aplikasi tidak menerapkannya otomatis.
+![Panel Mode workshop FieldOps untuk memeriksa koneksi dan latihan](apps/web/public/workshop.png)
 
-Untuk mengembalikan **kode** ke starter:
+## Referensi
 
-```bash
-./scripts/workspace-compose.sh exec -T api npm run lab:reset -- all
-```
+- Redis: [GEOADD](https://redis.io/docs/latest/commands/geoadd/), [GEOSEARCH](https://redis.io/docs/latest/commands/geosearch/), [Streams](https://redis.io/docs/latest/develop/data-types/streams/), [XLEN](https://redis.io/docs/latest/commands/xlen/), dan [XRANGE](https://redis.io/docs/latest/commands/xrange/).
+- KafkaJS 2.2.4: [producer](https://kafka.js.org/docs/producing) dan [consumer](https://kafka.js.org/docs/consuming).
+- Korvet: [release v0.19.0](https://github.com/redis-field-engineering/korvet-dist/releases/tag/v0.19.0), [README distribusi](https://github.com/redis-field-engineering/korvet-dist/blob/8ef461e8317b2590edfde386ee810154ef7d0971/README.adoc), [contoh kafka-cli](https://github.com/redis-field-engineering/korvet-dist/tree/8ef461e8317b2590edfde386ee810154ef7d0971/samples/kafka-cli), [contoh pacman](https://github.com/redis-field-engineering/korvet-dist/tree/8ef461e8317b2590edfde386ee810154ef7d0971/samples/pacman), [konfigurasi](https://redis-field-engineering.github.io/korvet/0.19/reference/configuration.html), dan [penyimpanan Streams](https://redis-field-engineering.github.io/korvet/0.19/storage/redis-streams.html).
+- Peta: [OpenStreetMap](https://www.openstreetmap.org/copyright) dan [sumber koordinat wilayah](apps/api/src/operations/jakarta-locations.json).
+- [Pemberitahuan lisensi Korvet](licenses/korvet-LICENSE.txt).
 
-Untuk mereset **data lab** pada database yang dikonfigurasi:
-
-```bash
-./scripts/workspace-compose.sh exec -T api sh -c 'npm run data:reset -- --confirm="$LAB_ID"'
-```
-
-Reset data menghentikan simulator dan consumer, lalu membersihkan key, topic, serta group milik LAB_ID tersebut. Reset kode dan reset data adalah tindakan terpisah. Prefix lab mencegah benturan nama; instruktur tetap perlu mengatur akses database peserta.
-
-Akhiri sesi dengan:
-
-```bash
-./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/enterprise.yaml --profile streaming --profile local down
-```
-
-Container dihentikan dan volume tetap disimpan. Untuk sesi berikutnya, jalankan startup sesuai mode yang digunakan dan periksa koneksi kembali.
-
-## Perubahan kode dan penanganan kendala
-
-| Perubahan / gejala                                   | Tindakan                                                                                                                    |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Dua file latihan diubah                              | Simpan, tunggu watcher, lalu periksa koneksi Redis dan latihan                                                              |
-| `.env` diubah                                        | Jalankan `./scripts/workspace-compose.sh up -d api`; gunakan mode Enterprise yang sama jika Korvet ikut dikonfigurasi ulang |
-| Frontend atau Dockerfile diubah                      | Jalankan kembali perintah startup dengan `--build`, lalu muat ulang browser                                                 |
-| File CA/cert/key diganti pada path yang sama         | Recreate API, redis-link, dan Korvet dengan `--force-recreate` pada mode Enterprise                                         |
-| HTTPS localhost menampilkan pemberitahuan sertifikat | Pastikan alamat `https://localhost:8443`, lalu lanjutkan akses sertifikat lokal untuk sesi workshop                         |
-| Koneksi masih Lokal · terkunci                       | Ganti REDIS_URL ke endpoint instruktur, terapkan environment container, lalu periksa kembali                                |
-| Autentikasi atau TLS Redis gagal                     | Periksa endpoint database, port, kredensial yang di-encode, CA, dan pasangan sertifikat client                              |
-| Korvet gagal dengan JSON.SET                         | Pastikan database menyediakan fitur Redis JSON                                                                              |
-| Producer tersambung, grafik belum bergerak           | Periksa KORVET-02, consumer, aset yang dipilih, dan simulator                                                               |
-| Peta jalan tidak tersedia                            | Gunakan grid koordinat; tombol Muat ulang peta mencoba tile kembali                                                         |
-| Reset memberi pesan consumer group masih aktif       | Hentikan consumer lab. Setelah gangguan Redis, instruktur dapat memulai ulang Korvet sebelum mengulangi reset               |
-
-Log aplikasi dan Korvet:
-
-```bash
-./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/enterprise.yaml logs --tail=80 api redis-link korvet
-```
-
-Korvet v0.19.0 pernah mempertahankan membership consumer setelah storage Redis terputus. Pada instance khusus lab, instruktur dapat menjalankan:
-
-```bash
-./scripts/workspace-compose.sh -f compose.yaml -f infra/compose/enterprise.yaml restart korvet
-```
-
-Restart broker yang dipakai bersama dikelola instruktur. Aplikasi memberi HTTP 409 saat reset terhalang membership tersebut dan tidak melaporkan cleanup sebagai berhasil.
-
-## Catatan teknis dan referensi
-
-Peserta hanya mengubah `.env`, `apps/api/src/labs/geo.ts`, dan `apps/api/src/labs/korvet.ts`. UI, client lifecycle, simulator, validasi, dan SSE sudah disiapkan. Pada panduan browser, setiap blok kode memiliki tombol **Salin kode**.
-
-![Mode workshop FieldOps dengan Redis lokal tetap terkunci](apps/web/public/workshop.png)
-
-| Komponen                         | Versi yang dipin                                           |
-| -------------------------------- | ---------------------------------------------------------- |
-| Node.js / npm                    | 22.22.0 / 10.9.4                                           |
-| Redis lokal dan fixture          | 8.2.3-alpine                                               |
-| Korvet                           | v0.19.0, image distribusi resmi dengan digest pada Compose |
-| KafkaJS / node-redis             | 2.2.4 / 4.7.1                                              |
-| React / TypeScript / Vite        | 19.2.0 / 5.9.3 / 7.1.12                                    |
-| nginx / OpenSSL sertifikat lokal | 1.28.0-alpine / 3.5.4                                      |
-
-Korvet dipin pada release [v0.19.0](https://github.com/redis-field-engineering/korvet-dist/releases/tag/v0.19.0), commit release `73440c9faf2e1d92652c49dd94a2bb2a2bac7248`. Dokumentasi dan sample distribusi yang dirujuk berasal dari commit `8ef461e8317b2590edfde386ee810154ef7d0971`. Commit build situs dokumentasi tidak dipublikasikan pada halaman yang diperiksa.
-
-- Sumber Korvet: [README](https://github.com/redis-field-engineering/korvet-dist/blob/8ef461e8317b2590edfde386ee810154ef7d0971/README.adoc), [kafka-cli](https://github.com/redis-field-engineering/korvet-dist/tree/8ef461e8317b2590edfde386ee810154ef7d0971/samples/kafka-cli), [pacman](https://github.com/redis-field-engineering/korvet-dist/tree/8ef461e8317b2590edfde386ee810154ef7d0971/samples/pacman), [konfigurasi 0.19](https://redis-field-engineering.github.io/korvet/0.19/reference/configuration.html), dan [Redis Streams 0.19](https://redis-field-engineering.github.io/korvet/0.19/storage/redis-streams.html).
-- Command Redis: [GEOADD](https://redis.io/docs/latest/commands/geoadd/), [GEOSEARCH](https://redis.io/docs/latest/commands/geosearch/), [Streams](https://redis.io/docs/latest/develop/data-types/streams/), [XLEN](https://redis.io/docs/latest/commands/xlen/), dan [XRANGE](https://redis.io/docs/latest/commands/xrange/).
-- KafkaJS: [producer](https://kafka.js.org/docs/producing) dan [consumer](https://kafka.js.org/docs/consuming).
-- Geografi: [OpenStreetMap](https://www.openstreetmap.org/copyright), [sumber koordinat wilayah](apps/api/src/operations/jakarta-locations.json). Attribution peta dipertahankan.
-- [Pemberitahuan lisensi Korvet](licenses/korvet-LICENSE.txt) dipertahankan tanpa perubahan. FieldOps menggunakan distribusi resmi Korvet; tidak mengimplementasikan ulang broker atau seluruh fitur Kafka.
-
-Alur Redis/Korvet telah diperiksa pada Linux ARM64 tanpa emulasi, termasuk TLS/mutual TLS menggunakan database fixture. Manifest Korvet menyediakan AMD64; runtime AMD64 belum diuji. Akses UI Redis dan endpoint database instruktur tetap mengikuti jaringan serta kredensial sesi. Alamat UI Redis yang dicantumkan belum dapat dijangkau dari lingkungan pengujian ini.
+Referensi Korvet menggunakan release commit `73440c9faf2e1d92652c49dd94a2bb2a2bac7248` dan commit dokumentasi/sample `8ef461e8317b2590edfde386ee810154ef7d0971`. Situs dokumentasi tidak mencantumkan commit publikasinya. Integrasi diperiksa dengan Korvet v0.19.0 dan KafkaJS 2.2.4 pada Linux ARM64 tanpa emulasi; runtime AMD64 belum diuji. FieldOps menggunakan distribusi resmi Korvet.
