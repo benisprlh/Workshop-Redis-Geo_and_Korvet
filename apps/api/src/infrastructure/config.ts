@@ -1,13 +1,15 @@
 import { config as loadEnv } from 'dotenv';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { readRedisEnvironment } from './redis-environment.js';
+import { readRedisEnvironment, readWorkshopEnvironment } from './redis-environment.js';
+import { readKafkaSettings } from './kafka-settings.js';
 loadEnv({
   path: resolve(process.cwd(), process.cwd().endsWith('/apps/api') ? '../../.env' : '.env'),
 });
 
 const name = z.string().regex(/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,47}$/);
 const labId = name.parse(process.env.LAB_ID || 'fieldops-demo');
+const environment = readWorkshopEnvironment();
 const topic = z
   .string()
   .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,180}$/)
@@ -23,12 +25,8 @@ export const config = {
   labId,
   topic,
   groupId,
-  redis: readRedisEnvironment(),
-  brokers: (process.env.KAFKA_BROKERS || 'localhost:9092')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean),
-  namespace: name.parse(process.env.KORVET_NAMESPACE || 'korvet'),
+  redis: readRedisEnvironment(environment),
+  ...readKafkaSettings(environment.values),
   port: z.coerce
     .number()
     .int()
@@ -39,15 +37,6 @@ export const config = {
   positionsKey: `fieldops:${labId}:technicians:positions`,
   checkTimeoutMs: 20000,
   commandTimeoutMs: 5500,
-  ssl: process.env.KAFKA_SSL === 'true',
-  sasl:
-    process.env.KAFKA_USERNAME && process.env.KAFKA_PASSWORD
-      ? {
-          mechanism: 'plain' as const,
-          username: process.env.KAFKA_USERNAME,
-          password: process.env.KAFKA_PASSWORD,
-        }
-      : undefined,
 };
 export type RuntimeConfig = typeof config;
 // Prefix partition resmi; storage.ts menemukan layout fisik aktual melalui command read-only.

@@ -3,7 +3,12 @@ import type { Consumer } from 'kafkajs';
 import { saveTechnicianPosition, findNearbyTechnicians } from '../labs/geo.js';
 import { publishTelemetry, consumeTelemetry } from '../labs/korvet.js';
 import { config } from '../infrastructure/config.js';
-import { readRedisEnvironment } from '../infrastructure/redis-environment.js';
+import {
+  readRedisEnvironment,
+  readWorkshopEnvironment,
+} from '../infrastructure/redis-environment.js';
+import { readKafkaSettings } from '../infrastructure/kafka-settings.js';
+import { initialKorvetConnection } from '../workshop/korvet-connection.js';
 import { Infrastructure, makeConsumer } from '../infrastructure/clients.js';
 import { State } from './state.js';
 import { resetLabData } from './reset-data.js';
@@ -45,6 +50,8 @@ export class Runtime {
   private tickCount = 0;
   private simulationGeneration = 0;
   private closing = false;
+  private checkingConnection = false;
+  private connectionGeneration = 0;
   start(): void {
     this.infra.start();
     this.state.activity(
@@ -72,22 +79,38 @@ export class Runtime {
     this.infra.requireRedis();
   }
   async checkConnection(): Promise<void> {
-    if (this.state.data.checking || this.state.data.redisConnection.status === 'checking')
+    if (this.state.data.checking || this.checkingConnection)
       throw new ApiError(409, 'Tunggu pemeriksaan yang sedang berjalan.');
+    this.checkingConnection = true;
+    this.stopSimulator();
     this.state.data.redisConnection.status = 'checking';
     this.state.emit();
     try {
-      const settings = readRedisEnvironment();
-      if (JSON.stringify(settings) !== JSON.stringify(config.redis)) {
+      const environment = readWorkshopEnvironment();
+      const settings = readRedisEnvironment(environment);
+      const kafka = readKafkaSettings(environment.values);
+      const oldKafka = {
+        brokers: config.brokers,
+        namespace: config.namespace,
+        kafkaIssue: config.kafkaIssue,
+        ssl: config.ssl,
+        sasl: config.sasl,
+      };
+      if (
+        JSON.stringify(settings) !== JSON.stringify(config.redis) ||
+        JSON.stringify(kafka) !== JSON.stringify(oldKafka)
+      ) {
+        this.connectionGeneration += 1;
         this.stopSimulator();
         await this.stopConsumer();
         await this.infra.resetRedis();
         config.redis = settings;
+        Object.assign(config, kafka);
         this.state.clearData();
         delete this.state.data.simulator.error;
         for (const exercise of this.state.data.exercises) {
           exercise.status = 'dependency';
-          exercise.message = 'Koneksi Redis berubah. Periksa latihan kembali pada endpoint ini.';
+          exercise.message = 'Koneksi lab berubah. Periksa latihan kembali pada endpoint ini.';
           delete exercise.checkedAt;
         }
       }
@@ -103,15 +126,34 @@ export class Runtime {
             'Koneksi utama Redis belum siap. Periksa endpoint dan jaringan, lalu periksa koneksi kembali.';
         }
       }
-      this.state.data.redisConnection = connection;
       if (connection.status === 'passed') {
-        this.infra.enableStreaming();
-        this.state.activity('Koneksi Redis terverifikasi. Empat latihan siap diperiksa.');
+        this.state.data.redisConnection.korvet = initialKorvetConnection();
+        this.state.emit();
+        connection.korvet = await this.infra.enableStreaming();
+        if (connection.korvet.status === 'passed')
+          this.state.activity(
+            'Redis dan penyimpanan Korvet terverifikasi. Empat latihan siap diperiksa.',
+          );
+        else {
+          this.stopSimulator();
+          await this.stopConsumer();
+          for (const exercise of this.state.data.exercises.filter((e) =>
+            e.id.startsWith('KORVET'),
+          )) {
+            exercise.status = 'infrastructure';
+            exercise.message = connection.korvet.message;
+          }
+          this.state.activity(
+            'Redis terverifikasi. Koneksi atau penyimpanan Korvet perlu diperiksa.',
+            'warning',
+          );
+        }
       } else {
         this.stopSimulator();
         await this.stopConsumer();
         await this.infra.resetRedis();
       }
+      this.state.data.redisConnection = connection;
     } catch {
       this.state.data.redisConnection = {
         ...initialRedisConnection(),
@@ -120,6 +162,7 @@ export class Runtime {
         message: 'Koneksi belum dapat diperbarui. Periksa .env dan jaringan, lalu periksa kembali.',
       };
     } finally {
+      this.checkingConnection = false;
       this.state.emit();
     }
   }
@@ -205,10 +248,12 @@ export class Runtime {
   async publish(event: TelemetryEvent): Promise<void> {
     this.requireExercise('KORVET-01');
     this.infra.requireKorvet();
+    const generation = this.connectionGeneration;
     await timeout(
       publishTelemetry(this.infra.producer, config.topic, event),
       config.commandTimeoutMs,
     );
+    if (generation !== this.connectionGeneration) return;
     this.state.data.counts.sent += 1;
     this.state.journey(event).sentAt = new Date().toISOString();
     this.state.emit();

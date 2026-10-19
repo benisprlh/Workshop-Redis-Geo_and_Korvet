@@ -37,6 +37,7 @@ services:
     ports: !override ['127.0.0.1:19192:9092']
     environment:
       REDIS_URL: rediss://default:fieldops-test-password@redis:6379
+      KORVET_RUNTIME_DIRECTORY: ''
       KORVET_REDIS_USE_LINK: 'true'
       KORVET_BROKER_ADVERTISED_HOST: localhost
       KORVET_BROKER_ADVERTISED_PORT: '19192'
@@ -48,6 +49,7 @@ services:
     init: true
     environment:
       REDIS_URL: rediss://default:fieldops-test-password@redis:6379
+      KORVET_RUNTIME_DIRECTORY: ''
       REDIS_CA_FILE: /app/certs/ca.pem
       REDIS_CLIENT_CERT_FILE: /app/certs/client.crt
       REDIS_CLIENT_KEY_FILE: /app/certs/client.key

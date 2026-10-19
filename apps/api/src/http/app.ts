@@ -132,13 +132,13 @@ export function createApp(runtime: Runtime) {
     res.flushHeaders();
     browsers.add(res);
     const send = () => {
-      if (!res.destroyed)
+      if (!res.destroyed && !res.writableEnded)
         res.write(`event: snapshot\ndata: ${JSON.stringify(runtime.state.snapshot())}\n\n`);
     };
     send();
     runtime.state.bus.on('change', send);
     const heartbeat = setInterval(() => {
-      if (!res.destroyed) res.write(': heartbeat\n\n');
+      if (!res.destroyed && !res.writableEnded) res.write(': heartbeat\n\n');
     }, 15000);
     req.on('close', () => {
       clearInterval(heartbeat);

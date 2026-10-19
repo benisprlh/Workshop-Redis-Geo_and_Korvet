@@ -1,5 +1,8 @@
 #!/bin/sh
 set -eu
+if [ -n "${KORVET_RUNTIME_DIRECTORY:-}" ]; then
+  exec /bin/sh /workshop/supervisor.sh "$@"
+fi
 if [ -z "${REDIS_URL:-}" ]; then
   echo 'REDIS_URL belum diisi. Isi endpoint database Redis pada .env sebelum menjalankan Korvet.' >&2
   exit 1

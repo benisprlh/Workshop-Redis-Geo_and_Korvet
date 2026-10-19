@@ -35,10 +35,16 @@ Untuk database dengan TLS aktif, gunakan skema `rediss://`:
 REDIS_URL='rediss://USERNAME:PASSWORD_DATABASE@HOST_DATABASE:PORT_DATABASE'
 ```
 
-5. Simpan `.env`, lalu buka **https://localhost:3000**. Pilih **Mode workshop → Koneksi Redis** dan tekan **Periksa koneksi Redis**. Tombol ini membaca ulang `.env` dan menerapkan koneksi terbaru. Periksa hostname dan port pada **Endpoint backend**.
+5. Simpan `.env`, lalu buka **https://localhost:3000**. Pilih **Mode workshop → Koneksi Redis** dan tekan **Periksa koneksi Redis**. Tombol ini membaca ulang `.env`, mengganti koneksi backend, dan menerapkan penyimpanan yang sama ke Korvet bawaan lab. Tunggu pemeriksaan selesai; Korvet dapat memerlukan beberapa detik untuk tersambung kembali. Periksa hostname dan port pada **Endpoint backend**.
 6. Lanjutkan ke **GEO-01** ketika status **Terverifikasi** dan pemeriksaan **PING**, **Baca/tulis**, serta **Cleanup** berhasil. Jika muncul **Lokal · terkunci**, periksa `REDIS_URL` yang disimpan. Jika koneksi gagal, cocokkan endpoint, port, kredensial, dan skema `redis://` atau `rediss://` dengan detail database.
 
-Jika endpoint berubah, simulator dan consumer dihentikan, lalu hasil pemeriksaan latihan dikosongkan untuk koneksi baru. Tekan **Periksa latihan** kembali sebelum melanjutkan kedua kasus. Perubahan `.env` diterapkan melalui UI tanpa menjalankan ulang layanan.
+Panel **Penyimpanan Korvet** menampilkan broker yang dipakai KafkaJS. Status **Terverifikasi** berarti event uji telah dikirim melalui Korvet dan ditemukan pada Redis yang sama dengan **Endpoint backend**, lalu topic uji dibersihkan. Koneksi Redis yang lulus cukup untuk memulai GEO; selesaikan pemeriksaan Korvet sebelum KORVET-01.
+
+Untuk Korvet bawaan lab, biarkan `KAFKA_BROKERS=korvet:9092`. Alamat ini menghubungkan API ke broker pada jaringan aplikasi. Endpoint Redis Enterprise diisi pada `REDIS_URL`. Tombol **Periksa koneksi Redis** tetap tersedia setelah koneksi lulus, di atas **Lanjutkan ke GEO-01**, sehingga perubahan `.env` dapat diterapkan dari panel yang sama.
+
+Jika endpoint, kredensial, database, atau pengaturan Kafka berubah, simulator dan consumer dihentikan, lalu hasil pemeriksaan latihan dikosongkan. Tekan **Periksa latihan** kembali sebelum melanjutkan kedua kasus. Simpan `.env` dan gunakan pemeriksaan UI; tidak perlu menjalankan ulang layanan. `LAB_ID`, topic, dan group tetap milik instance lab yang disiapkan instruktur.
+
+Jika `KAFKA_BROKERS` menunjuk Korvet milik instruktur, UI memperbarui client KafkaJS dan memeriksa penyimpanan broker tersebut. Konfigurasi server eksternal tetap dikelola instruktur. Pesan **event uji tidak ditemukan** berarti penyimpanan broker atau `KORVET_NAMESPACE` belum sesuai dengan `REDIS_URL`; minta instruktur menyamakannya.
 
 Setiap selesai mengedit kode latihan, simpan file dan tunggu backend tersambung kembali. Periksa koneksi Redis jika diminta, kemudian pilih latihan dan tekan **Periksa latihan**. Pemeriksaan memakai Redis dan Korvet yang sebenarnya; fitur terbuka setelah hasilnya **Lulus**.
 

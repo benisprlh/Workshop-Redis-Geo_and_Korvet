@@ -311,7 +311,9 @@ export class Validator {
         Object.assign(exercise, {
           status: 'infrastructure',
           message:
-            'Infrastruktur tidak tersambung. Periksa Redis/Korvet, kredensial, TLS, dan advertised host.',
+            error instanceof InfrastructureError
+              ? error.message
+              : 'Infrastruktur tidak tersambung. Periksa Redis/Korvet, kredensial, TLS, dan advertised host.',
         });
       else
         Object.assign(exercise, {

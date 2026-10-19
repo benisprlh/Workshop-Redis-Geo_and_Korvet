@@ -2,6 +2,8 @@ import { createClient } from 'redis';
 import { Kafka, Partitioners, logLevel, type Consumer, type Producer } from 'kafkajs';
 import { config } from './config.js';
 import { InfrastructureError, timeout } from '../shared/errors.js';
+import { checkKorvetConnection } from '../workshop/korvet-connection.js';
+import type { RedisConnection } from '@fieldops/contracts';
 
 export function makeRedis(reconnect = false) {
   if (config.redis.issue || !config.redis.options)
@@ -19,6 +21,7 @@ export function makeRedis(reconnect = false) {
   return client;
 }
 export function makeKafka() {
+  if (config.kafkaIssue) throw new InfrastructureError(config.kafkaIssue);
   return new Kafka({
     clientId: `${config.labId}-api`,
     brokers: config.brokers,
@@ -93,7 +96,8 @@ export async function deleteFixtureTopics(topics: string[], groups: string[]): P
 }
 export class Infrastructure {
   private redisClient?: ReturnType<typeof makeRedis>;
-  producer = makeProducer();
+  private producerClient?: Producer;
+  korvetMessage = 'Periksa koneksi Redis untuk menerapkan penyimpanan dan koneksi Korvet.';
   redisReady = false;
   korvetReady = false;
   producerReady = false;
@@ -102,11 +106,18 @@ export class Infrastructure {
   private closed = false;
   private timer?: ReturnType<typeof setInterval>;
   private streamingEnabled = false;
-  constructor(private changed: () => void) {
-    this.producer.on(this.producer.events.DISCONNECT, () => {
+  private storageVerified = false;
+  constructor(private changed: () => void) {}
+  get producer(): Producer {
+    if (this.producerClient) return this.producerClient;
+    const producer = makeProducer();
+    producer.on(producer.events.DISCONNECT, () => {
+      if (this.producerClient !== producer) return;
       this.producerReady = false;
-      changed();
+      this.changed();
     });
+    this.producerClient = producer;
+    return producer;
   }
   get redis(): ReturnType<typeof makeRedis> {
     if (this.redisClient) return this.redisClient;
@@ -150,15 +161,22 @@ export class Infrastructure {
       void this.refresh();
     }, 5000);
   }
-  enableStreaming(): void {
+  async enableStreaming(): Promise<NonNullable<RedisConnection['korvet']>> {
+    this.storageVerified = false;
+    this.korvetReady = false;
+    const result = await checkKorvetConnection(this.redis);
+    this.storageVerified = result.status === 'passed';
+    this.korvetMessage = result.message;
     this.streamingEnabled = true;
-    void this.refresh();
+    await this.refresh();
+    if (this.storageVerified && !this.producerReady) await this.refresh();
+    return result;
   }
   async refresh(): Promise<void> {
     if (this.closed || this.resetting) return;
     if (this.connecting) return this.connecting;
     this.connecting = (async () => {
-      if (this.streamingEnabled)
+      if (this.streamingEnabled && this.storageVerified)
         try {
           await timeout(ensureTopic(config.topic), 9000);
           this.korvetReady = true;
@@ -191,7 +209,9 @@ export class Infrastructure {
   requireKorvet(): void {
     if (!this.korvetReady || !this.producerReady)
       throw new InfrastructureError(
-        'Korvet tidak tersambung. Periksa KAFKA_BROKERS dan KORVET_BROKER_ADVERTISED_HOST.',
+        this.storageVerified
+          ? 'Korvet tidak tersambung. Periksa KAFKA_BROKERS dan advertised broker address.'
+          : this.korvetMessage,
       );
   }
   /** Tutup client endpoint sebelumnya sebelum konfigurasi Redis diganti dari UI. */
@@ -199,8 +219,11 @@ export class Infrastructure {
     if (this.resetting) return this.resetting;
     this.resetting = (async () => {
       this.streamingEnabled = false;
+      this.storageVerified = false;
       await this.connecting?.catch(() => {});
-      await this.producer.disconnect().catch(() => {});
+      const producer = this.producerClient;
+      this.producerClient = undefined;
+      await producer?.disconnect().catch(() => {});
       const redis = this.redisClient;
       this.redisClient = undefined;
       this.redisReady = false;
@@ -218,7 +241,7 @@ export class Infrastructure {
     clearInterval(this.timer);
     await this.resetting?.catch(() => {});
     await this.connecting?.catch(() => {});
-    await this.producer.disconnect().catch(() => {});
+    await this.producerClient?.disconnect().catch(() => {});
     if (this.redisClient?.isOpen) await this.redisClient.disconnect().catch(() => {});
   }
 }

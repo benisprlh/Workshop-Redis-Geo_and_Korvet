@@ -3,7 +3,7 @@ export async function request<T>(path: string, method = 'GET', body?: unknown): 
   const controller = new AbortController();
   const timeout = window.setTimeout(
     () => controller.abort(),
-    path.includes('validate') ? 120000 : path === '/workshop/redis/check' ? 30000 : 15000,
+    path.includes('validate') || path === '/workshop/redis/check' ? 120000 : 15000,
   );
   try {
     const response = await fetch(`/api${path}`, {

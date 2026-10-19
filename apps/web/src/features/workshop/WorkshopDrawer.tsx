@@ -357,7 +357,9 @@ export default function WorkshopDrawer({
           <p>
             {selected === 'connection'
               ? connectionReady
-                ? 'Koneksi terverifikasi. Lanjutkan empat latihan backend.'
+                ? state.redisConnection.korvet?.status === 'failed'
+                  ? 'Redis siap untuk GEO. Periksa Korvet sebelum latihan streaming.'
+                  : 'Koneksi terverifikasi. Lanjutkan empat latihan backend.'
                 : state.redisConnection.status === 'local'
                   ? 'Ganti REDIS_URL ke endpoint instruktur untuk membuka latihan.'
                   : 'Simpan .env, lalu tekan Periksa koneksi Redis.'
@@ -368,6 +370,16 @@ export default function WorkshopDrawer({
           {selected !== 'connection' && !connectionReady && (
             <button className="button secondary full" onClick={() => setSelected('connection')}>
               Buka persiapan koneksi Redis
+            </button>
+          )}
+          {selected === 'connection' && connectionReady && (
+            <button
+              className="button secondary full"
+              disabled={state.checking || busy}
+              onClick={() => void action('/workshop/redis/check')}
+            >
+              <RefreshCw size={15} className={busy ? 'spin' : ''} />
+              Periksa koneksi Redis
             </button>
           )}
           <button

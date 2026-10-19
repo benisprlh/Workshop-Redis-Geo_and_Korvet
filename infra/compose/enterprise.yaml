@@ -2,31 +2,4 @@
 services:
   redis:
     profiles: ['local']
-  redis-link:
-    profiles: ['streaming']
-    image: fieldops-redis-link:1.0.0
-    build: { context: ., dockerfile: infra/docker/redis-link.Dockerfile }
-    init: true
-    environment:
-      REDIS_URL: ${REDIS_URL:-}
-      REDIS_CA_FILE: ${REDIS_CA_FILE:-}
-      REDIS_CLIENT_CERT_FILE: ${REDIS_CLIENT_CERT_FILE:-}
-      REDIS_CLIENT_KEY_FILE: ${REDIS_CLIENT_KEY_FILE:-}
-      REDIS_TLS_SERVERNAME: ${REDIS_TLS_SERVERNAME:-}
-    volumes:
-      - ./infra/certificates:/app/certs:ro
-    healthcheck:
-      test:
-        [
-          'CMD',
-          'node',
-          '-e',
-          "const s=require('net').connect(16379,'127.0.0.1');s.on('connect',()=>{s.destroy();process.exit(0)});s.on('error',()=>process.exit(1));s.setTimeout(2000,()=>process.exit(1))",
-        ]
-      interval: 5s
-      timeout: 3s
-      retries: 12
-  korvet:
-    depends_on: !override { redis-link: { condition: service_healthy } }
-    environment:
-      KORVET_REDIS_USE_LINK: 'true'
+# Penghubung dan Korvet bawaan mengikuti REDIS_URL melalui Periksa koneksi Redis.

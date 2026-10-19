@@ -2,5 +2,11 @@
 services:
   redis:
     profiles: ['local']
+  korvet:
+    profiles: ['streaming']
+  redis-link:
+    profiles: ['streaming']
   api:
     depends_on: !reset {}
+    environment:
+      KORVET_CONTROL_URL: ''

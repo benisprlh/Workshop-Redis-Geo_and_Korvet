@@ -1,40 +1,63 @@
 import net from 'node:net';
 import tls from 'node:tls';
 import { readFileSync } from 'node:fs';
+import { manageKorvet } from './runtime.mjs';
 
 // Penghubung transport saja: byte Redis diteruskan tanpa parsing atau operasi database.
 let target, socketOptions;
-try {
-  target = new URL(process.env.REDIS_URL);
+function configure(settings) {
+  const nextTarget = new URL(settings.url);
   if (
-    !['redis:', 'rediss:'].includes(target.protocol) ||
-    !target.hostname ||
-    target.search ||
-    target.hash
+    !['redis:', 'rediss:'].includes(nextTarget.protocol) ||
+    !nextTarget.hostname ||
+    nextTarget.search ||
+    nextTarget.hash
   )
     throw new Error();
-  const ca = process.env.REDIS_CA_FILE;
-  const cert = process.env.REDIS_CLIENT_CERT_FILE;
-  const key = process.env.REDIS_CLIENT_KEY_FILE;
+  const { ca, cert, key, servername } = settings;
   if (Boolean(cert) !== Boolean(key)) throw new Error();
-  socketOptions = {
-    host: target.hostname,
-    port: Number(target.port || 6379),
-    ...(target.protocol === 'rediss:'
+  const nextOptions = {
+    host: nextTarget.hostname.replace(/^\[|\]$/g, ''),
+    port: Number(nextTarget.port || 6379),
+    ...(nextTarget.protocol === 'rediss:'
       ? {
-          servername: process.env.REDIS_TLS_SERVERNAME || target.hostname,
+          servername: servername || nextTarget.hostname,
           rejectUnauthorized: true,
-          ...(ca ? { ca: [readFileSync(ca)] } : {}),
-          ...(cert ? { cert: readFileSync(cert), key: readFileSync(key) } : {}),
+          ...(ca ? { ca: [ca] } : {}),
+          ...(cert ? { cert, key } : {}),
         }
       : {}),
   };
-} catch {
-  console.error('Penghubung Redis: periksa REDIS_URL dan file sertifikat pada backend.');
-  process.exit(1);
+  target = nextTarget;
+  socketOptions = nextOptions;
 }
 const sockets = new Set();
+const disconnect = () => {
+  for (const socket of sockets) socket.destroy();
+};
+let control;
+if (process.env.KORVET_RUNTIME_DIRECTORY) {
+  control = await manageKorvet(process.env.KORVET_RUNTIME_DIRECTORY, configure, disconnect);
+} else {
+  try {
+    const pem = (path) => (path ? readFileSync(path, 'utf8') : undefined);
+    configure({
+      url: process.env.REDIS_URL,
+      ca: pem(process.env.REDIS_CA_FILE),
+      cert: pem(process.env.REDIS_CLIENT_CERT_FILE),
+      key: pem(process.env.REDIS_CLIENT_KEY_FILE),
+      servername: process.env.REDIS_TLS_SERVERNAME,
+    });
+  } catch {
+    console.error('Penghubung Redis: periksa REDIS_URL dan konfigurasi backend.');
+    process.exit(1);
+  }
+}
 const server = net.createServer((incoming) => {
+  if (!target) {
+    incoming.destroy();
+    return;
+  }
   incoming.pause();
   const encrypted = target.protocol === 'rediss:';
   let upstream;
@@ -74,6 +97,7 @@ server.listen(Number(process.env.REDIS_LINK_PORT || 16379), '0.0.0.0', () =>
   console.log('Penghubung Redis siap pada jaringan internal lab.'),
 );
 process.once('SIGTERM', () => {
-  for (const socket of sockets) socket.destroy();
+  disconnect();
+  control?.close();
   server.close(() => process.exit(0));
 });

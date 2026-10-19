@@ -1,0 +1,49 @@
+# Dua Redis khusus regresi perubahan endpoint; tidak memakai database instruktur.
+name: fieldops-reconnect-test
+services:
+  redis:
+    command: ['redis-server', '--requirepass', 'fixture-before-password']
+    ports: !override []
+    volumes: !override []
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'fixture-before-password', '--no-auth-warning', 'ping']
+  database-a:
+    image: redis:8.2.3-alpine
+    command: ['redis-server', '--requirepass', 'fixture-before-password']
+    ports: ['127.0.0.1:17479:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'fixture-before-password', '--no-auth-warning', 'ping']
+      interval: 3s
+      timeout: 2s
+      retries: 15
+  database-b:
+    image: redis:8.2.3-alpine
+    command: ['redis-server', '--requirepass', 'fixture-after-password']
+    ports: ['127.0.0.1:17480:6379']
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'fixture-after-password', '--no-auth-warning', 'ping']
+      interval: 3s
+      timeout: 2s
+      retries: 15
+  korvet:
+    ports: !override ['127.0.0.1:19492:9092']
+    networks:
+      default:
+        aliases: ['korvet-external']
+  api:
+    ports: !override ['127.0.0.1:3122:3001']
+    environment:
+      LAB_ID: fieldops-reconnect-test
+      WORKSHOP_ENV_FILE: /workshop-config/.env
+    volumes: !override
+      - ./test-results/reconnect/application:/workshop-config:ro
+      - ./test-results/reconnect/application/apps/api/src:/app/apps/api/src
+    depends_on:
+      redis: { condition: service_healthy }
+      database-a: { condition: service_healthy }
+      database-b: { condition: service_healthy }
+      redis-link: { condition: service_healthy }
+  web:
+    profiles: ['browser-production']
+  certificates:
+    profiles: ['browser-production']

@@ -112,7 +112,10 @@ try {
           .getByText('Lokal · terkunci', { exact: true })
           .waitFor();
       } else if (initial.redisConnection.endpoint.host) {
-        await page.getByText('Terverifikasi', { exact: true }).waitFor();
+        await page
+          .locator('.connection-detail > .exercise-detail-heading')
+          .getByText('Terverifikasi', { exact: true })
+          .waitFor();
         await page.getByRole('button', { name: 'Lanjutkan ke GEO-01', exact: true }).click();
       } else {
         await page.getByText('Periksa konfigurasi', { exact: true }).waitFor();

@@ -16,14 +16,36 @@ services:
       interval: 3s
       timeout: 2s
       retries: 15
+  redis-link:
+    image: fieldops-redis-link:1.0.0
+    build: { context: ., dockerfile: infra/docker/redis-link.Dockerfile }
+    init: true
+    environment:
+      KORVET_RUNTIME_DIRECTORY: /run/fieldops-korvet
+    volumes:
+      - korvet-runtime:/run/fieldops-korvet
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://localhost:16400/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 3s
+      timeout: 2s
+      retries: 15
   korvet:
-    profiles: ['streaming']
     image: redisfield/korvet:v0.19.0@sha256:c5e2a419ddb1dcb4404b20e7230ecd4804cfdbbff71fafe151c043842389015a
     command: server
     entrypoint: ['/bin/sh', '/workshop/korvet-entrypoint.sh']
+    init: true
+    depends_on:
+      redis-link: { condition: service_healthy }
     ports: ['127.0.0.1:9092:9092']
     environment:
       REDIS_URL: ${REDIS_URL:-}
+      KORVET_RUNTIME_DIRECTORY: /run/fieldops-korvet
       KORVET_NAMESPACE: ${KORVET_NAMESPACE:-korvet}
       KORVET_BROKER_ADVERTISED_HOST: korvet
       KORVET_TOPICS_0_NAME: '*'
@@ -32,8 +54,15 @@ services:
       KORVET_STORAGE_LOCAL_COMPRESSION_CODEC: none
     volumes:
       - ./infra/redis-link/korvet-entrypoint.sh:/workshop/korvet-entrypoint.sh:ro
+      - ./infra/redis-link/supervisor.sh:/workshop/supervisor.sh:ro
+      - korvet-runtime:/run/fieldops-korvet
     healthcheck:
-      test: ['CMD', 'wget', '-q', '-O', '/dev/null', 'http://localhost:8080/actuator/health']
+      test:
+        - CMD-SHELL
+        - >-
+          if [ -n "$$KORVET_RUNTIME_DIRECTORY" ] && [ ! -s "$$KORVET_RUNTIME_DIRECTORY/active" ];
+          then exit 0; fi;
+          exec wget -q -O /dev/null http://localhost:8080/actuator/health
       interval: 5s
       timeout: 5s
       retries: 24
@@ -42,6 +71,8 @@ services:
     image: fieldops-api:1.0.0
     build: { context: ., dockerfile: infra/docker/api.Dockerfile }
     init: true
+    depends_on:
+      redis-link: { condition: service_healthy }
     environment:
       LAB_ID: ${LAB_ID:-fieldops-demo}
       REDIS_URL: ${REDIS_URL:-}
@@ -59,6 +90,8 @@ services:
       KAFKA_PASSWORD: ${KAFKA_PASSWORD:-}
       API_PORT: '3001'
       WORKSHOP_ENV_FILE: /workshop-config/.env
+      KORVET_CONTROL_URL: http://redis-link:16400
+      KORVET_MANAGED_BROKER: korvet:9092
     ports: ['127.0.0.1:${API_PORT:-3001}:3001']
     volumes:
       # Mount direktori agar save atomik .env tetap terbaca tanpa recreate container.
@@ -88,3 +121,4 @@ services:
 volumes:
   redis-data:
   web-tls:
+  korvet-runtime:

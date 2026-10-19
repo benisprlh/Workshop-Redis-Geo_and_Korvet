@@ -23,6 +23,12 @@ export interface RedisConnection {
   message: string;
   checkedAt?: string;
   checks: { ping: boolean; writeRead: boolean; cleanup: boolean };
+  korvet?: {
+    status: 'checking' | 'passed' | 'failed';
+    brokers: string[];
+    managed: boolean;
+    message: string;
+  };
 }
 export interface Asset extends Position {
   id: string;

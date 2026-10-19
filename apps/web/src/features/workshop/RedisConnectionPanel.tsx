@@ -118,6 +118,37 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
         {connection.message}
         {connection.checkedAt && <small>Diperiksa {time(connection.checkedAt)}</small>}
       </p>
+      {connection.korvet && (
+        <div className="connection-korvet" aria-label="Koneksi dan penyimpanan Korvet">
+          <div className="exercise-detail-heading">
+            <h3>Penyimpanan Korvet</h3>
+            <Badge
+              tone={
+                connection.korvet.status === 'passed'
+                  ? 'green'
+                  : connection.korvet.status === 'failed'
+                    ? 'amber'
+                    : 'neutral'
+              }
+            >
+              {connection.korvet.status === 'passed'
+                ? 'Terverifikasi'
+                : connection.korvet.status === 'failed'
+                  ? 'Periksa Korvet'
+                  : 'Memeriksa…'}
+            </Badge>
+          </div>
+          <p className="mono connection-brokers">
+            {connection.korvet.brokers.join(', ') || 'Broker belum valid'}
+          </p>
+          <p
+            className={`exercise-message ${connection.korvet.status === 'failed' ? 'warning' : ''}`}
+            role="status"
+          >
+            {connection.korvet.message}
+          </p>
+        </div>
+      )}
       <a className="text-button" href="/api/guide#koneksi-redis" target="_blank" rel="noreferrer">
         Baca panduan koneksi
         <ExternalLink size={12} />
