@@ -1,13 +1,14 @@
 # Redis Enterprise eksternal + image Korvet resmi lokal + API/web.
 services:
   redis:
-    profiles: ['local-redis']
+    profiles: ['local']
   redis-link:
+    profiles: ['streaming']
     image: fieldops-redis-link:1.0.0
     build: { context: ., dockerfile: infra/docker/redis-link.Dockerfile }
     init: true
     environment:
-      REDIS_URL: ${REDIS_URL:?Isi REDIS_URL dengan endpoint database instruktur}
+      REDIS_URL: ${REDIS_URL:-}
       REDIS_CA_FILE: ${REDIS_CA_FILE:-}
       REDIS_CLIENT_CERT_FILE: ${REDIS_CLIENT_CERT_FILE:-}
       REDIS_CLIENT_KEY_FILE: ${REDIS_CLIENT_KEY_FILE:-}
@@ -27,13 +28,5 @@ services:
       retries: 12
   korvet:
     depends_on: !override { redis-link: { condition: service_healthy } }
-    entrypoint: ['/bin/sh', '/workshop/korvet-entrypoint.sh']
     environment:
-      REDIS_URL: ${REDIS_URL:?Isi REDIS_URL dengan endpoint database instruktur}
-    volumes:
-      - ./infra/redis-link/korvet-entrypoint.sh:/workshop/korvet-entrypoint.sh:ro
-  api:
-    # UI tetap dapat dibuka saat endpoint/kredensial salah; kesiapan diperiksa di workshop.
-    depends_on: !reset {}
-    environment:
-      REDIS_URL: ${REDIS_URL:?Isi REDIS_URL dengan endpoint database instruktur}
+      KORVET_REDIS_USE_LINK: 'true'

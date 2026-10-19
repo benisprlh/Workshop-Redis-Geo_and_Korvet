@@ -19,6 +19,7 @@
     "test": "tsx --test tests/unit/*.test.ts",
     "test:integration": "node tests/integration/solutions.mjs",
     "test:connection": "node tests/integration/connection.mjs",
+    "test:startup": "node tests/integration/startup.mjs",
     "test:browser": "node tests/browser/review.mjs",
     "test:outages": "node tests/integration/outages.mjs --local-test-instance",
     "test:watcher": "node tests/integration/watcher.mjs",

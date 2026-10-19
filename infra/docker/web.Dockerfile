@@ -11,4 +11,4 @@ RUN npm run build -w apps/web
 FROM nginx:1.28.0-alpine
 COPY infra/docker/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 443

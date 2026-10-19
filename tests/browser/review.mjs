@@ -1,10 +1,17 @@
 import { chromium } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
-const url = process.env.WEB_URL || 'http://localhost:5173';
+const url = process.env.WEB_URL || 'https://localhost:8443';
 await mkdir('test-results/screenshots', { recursive: true });
 const browser = await chromium.launch();
-const page = await browser.newPage();
+const context = await browser.newContext({
+  // Sertifikat localhost dibuat untuk lab; validasi TLS Redis tetap ketat.
+  ignoreHTTPSErrors: new URL(url).protocol === 'https:' && new URL(url).hostname === 'localhost',
+});
+await context.grantPermissions(['clipboard-read', 'clipboard-write'], {
+  origin: new URL(url).origin,
+});
+const page = await context.newPage();
 const errors = [],
   network = [],
   consoleErrors = [];
@@ -82,6 +89,7 @@ try {
       fullPage: false,
     });
     if (viewport.width === 1440) {
+      const initial = await (await page.request.get(`${url}/api/state`)).json();
       await page
         .getByRole('navigation', { name: 'Pilih latihan' })
         .getByRole('button', { name: /GEO-01/ })
@@ -91,22 +99,45 @@ try {
         true,
       );
       await preparation.click();
-      await page.getByRole('button', { name: 'Periksa koneksi Redis', exact: true }).click();
-      await page.getByText('Terverifikasi', { exact: true }).waitFor();
-      await page.getByRole('button', { name: 'Lanjutkan ke GEO-01', exact: true }).click();
-      assert.equal(
-        await page
-          .getByRole('navigation', { name: 'Pilih latihan' })
-          .getByRole('button', { name: /GEO-01/ })
-          .getAttribute('aria-pressed'),
-        'true',
+      const checkResponse = page.waitForResponse(
+        (response) =>
+          response.url().endsWith('/api/workshop/redis/check') &&
+          response.request().method() === 'POST',
       );
+      await page.getByRole('button', { name: 'Periksa koneksi Redis', exact: true }).click();
+      assert.equal((await checkResponse).status(), 200);
+      if (initial.redisConnection.endpoint.local) {
+        await page
+          .getByRole('region', { name: 'Persiapan koneksi Redis' })
+          .getByText('Lokal · terkunci', { exact: true })
+          .waitFor();
+      } else if (initial.redisConnection.endpoint.host) {
+        await page.getByText('Terverifikasi', { exact: true }).waitFor();
+        await page.getByRole('button', { name: 'Lanjutkan ke GEO-01', exact: true }).click();
+      } else {
+        await page.getByText('Periksa konfigurasi', { exact: true }).waitFor();
+        await page.getByText('Belum dikonfigurasi', { exact: true }).waitFor();
+      }
       const state = await (await page.request.get(`${url}/api/state`)).json();
+      const configured = Boolean(initial.redisConnection.endpoint.host);
+      const local = initial.redisConnection.endpoint.local;
+      assert.equal(
+        state.redisConnection.status,
+        local ? 'local' : configured ? 'passed' : 'failed',
+      );
       assert.deepEqual(state.redisConnection.checks, {
-        ping: true,
-        writeRead: true,
-        cleanup: true,
+        ping: configured,
+        writeRead: configured,
+        cleanup: configured,
       });
+      if (!configured || local) {
+        assert.match(
+          state.redisConnection.message,
+          local ? /Latihan tetap terkunci/ : /REDIS_URL belum diisi/,
+        );
+        assert.equal(state.infra.redis, false);
+        assert.equal(state.infra.producer, false);
+      }
       assert.ok(state.exercises.every((exercise) => exercise.status === 'todo'));
     }
     await page
@@ -134,15 +165,25 @@ try {
         page.getByRole('link', { name: 'Baca panduan latihan' }).click(),
       ]);
       await guide.getByRole('heading', { name: 'KORVET-02', exact: true }).waitFor();
-      assert.equal(await guide.locator('details').count(), 12);
-      await guide.locator('summary').first().click();
-      assert.equal(await guide.locator('details').first().getAttribute('open'), '');
-      await guide.getByRole('link', { name: 'panduan pengelolaan', exact: true }).click();
-      await guide.getByRole('heading', { name: 'Pengelolaan FieldOps', exact: true }).waitFor();
-      await guide.getByRole('link', { name: 'README', exact: true }).click();
-      await guide.getByRole('heading', { name: 'FieldOps', exact: true }).waitFor();
+      await guide.bringToFront();
+      assert.equal(new URL(guide.url()).pathname, '/api/guide');
+      await guide.getByRole('heading', { name: 'Koneksi Redis', exact: true }).waitFor();
+      const redisUi = guide
+        .getByRole('link', { name: 'https://redisdc.vtidemo.id', exact: true })
+        .first();
+      assert.equal(await redisUi.getAttribute('href'), 'https://redisdc.vtidemo.id');
+      await guide.getByRole('button', { name: 'Salin kode', exact: true }).first().click();
+      await guide.getByRole('button', { name: 'Tersalin', exact: true }).waitFor();
+      assert.equal(
+        await guide.evaluate(() => navigator.clipboard.readText()),
+        await guide.locator('pre code').first().textContent(),
+      );
+      assert.equal(await guide.locator('pre').count(), await guide.locator('.copy-code').count());
       await guide.locator('img').waitFor();
       await guide.waitForFunction(() => document.querySelector('img')?.naturalWidth > 0);
+      const license = await guide.request.get(`${url}/api/guide/korvet-LICENSE.txt`);
+      assert.equal(license.status(), 200);
+      assert.match(await license.text(), /Copyright \(c\) Redis Ltd/);
       await guide.close();
     }
     await page.keyboard.press('Escape');
@@ -155,7 +196,8 @@ try {
   assert.deepEqual(errors, []);
   assert.deepEqual(network, []);
   assert.deepEqual(consoleErrors, []);
-  const offline = await browser.newPage({ viewport: { width: 1366, height: 768 } });
+  const offline = await context.newPage();
+  await offline.setViewportSize({ width: 1366, height: 768 });
   const offlineErrors = [];
   offline.on('pageerror', (error) => offlineErrors.push(error.message));
   await offline.route('https://tile.openstreetmap.org/**', (route) => route.abort());

@@ -82,7 +82,7 @@ export default function WorkshopDrawer({
   useEffect(() => {
     void request<Hint[]>('/workshop/hints')
       .then(setHints)
-      .catch(() => setError('Petunjuk gagal dimuat. Buka docs/workshop.md.'));
+      .catch(() => setError('Petunjuk gagal dimuat. Buka README.md.'));
     const previousFocus = document.activeElement as HTMLElement;
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -271,7 +271,7 @@ export default function WorkshopDrawer({
                 </div>
                 <a
                   className="text-button"
-                  href={`/api/docs/workshop.md#${selected.toLowerCase()}`}
+                  href={`/api/guide#${selected.toLowerCase()}`}
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -293,8 +293,20 @@ export default function WorkshopDrawer({
             <div className="workshop-tools-body">
               <div>
                 <span>Redis</span>
-                <Badge tone={state.infra.redis ? 'green' : 'red'}>
-                  {state.infra.redis ? 'Tersambung' : 'Terputus'}
+                <Badge
+                  tone={
+                    state.infra.redis
+                      ? 'green'
+                      : state.redisConnection.status === 'local'
+                        ? 'amber'
+                        : 'red'
+                  }
+                >
+                  {state.infra.redis
+                    ? 'Tersambung'
+                    : state.redisConnection.status === 'local'
+                      ? 'Lokal · terkunci'
+                      : 'Terputus'}
                 </Badge>
               </div>
               <div>
@@ -346,7 +358,9 @@ export default function WorkshopDrawer({
             {selected === 'connection'
               ? connectionReady
                 ? 'Koneksi terverifikasi. Lanjutkan empat latihan backend.'
-                : 'Terapkan .env di backend, lalu periksa koneksi.'
+                : state.redisConnection.status === 'local'
+                  ? 'Ganti REDIS_URL ke endpoint instruktur untuk membuka latihan.'
+                  : 'Terapkan .env di backend, lalu periksa koneksi.'
               : connectionReady
                 ? 'Simpan perubahan di editor, lalu periksa latihan.'
                 : 'Periksa koneksi Redis terlebih dahulu sebelum validasi latihan.'}

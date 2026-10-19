@@ -39,6 +39,7 @@ export class Runtime {
   validator = new Validator(this.state, this.infra);
   private consumer?: Consumer;
   private consumerStarting?: Promise<void>;
+  private consumerStopping?: Promise<void>;
   private simulatorTimer?: ReturnType<typeof setTimeout>;
   private tickCount = 0;
   private simulationGeneration = 0;
@@ -58,6 +59,8 @@ export class Runtime {
       );
   }
   requireRedisConnection(): void {
+    if (this.state.data.redisConnection.status === 'local')
+      throw new ApiError(423, this.state.data.redisConnection.message);
     if (this.state.data.redisConnection.status === 'failed')
       throw new InfrastructureError(this.state.data.redisConnection.message);
     if (this.state.data.redisConnection.status !== 'passed')
@@ -72,7 +75,17 @@ export class Runtime {
       throw new ApiError(409, 'Tunggu pemeriksaan yang sedang berjalan.');
     this.state.data.redisConnection.status = 'checking';
     this.state.emit();
-    this.state.data.redisConnection = await checkRedisConnection();
+    const connection = await checkRedisConnection();
+    if (connection.status === 'passed') {
+      try {
+        await this.infra.connectRedis();
+      } catch {
+        connection.status = 'failed';
+        connection.message =
+          'Koneksi utama Redis belum siap. Periksa endpoint dan jaringan, lalu periksa koneksi kembali.';
+      }
+    }
+    this.state.data.redisConnection = connection;
     if (this.state.data.redisConnection.status === 'passed') {
       this.infra.enableStreaming();
       this.state.activity('Koneksi Redis terverifikasi. Empat latihan siap diperiksa.');
@@ -88,7 +101,9 @@ export class Runtime {
       for (const exercise of this.state.data.exercises) {
         exercise.status = disconnected ? 'infrastructure' : 'dependency';
         exercise.message =
-          'Selesaikan persiapan Koneksi Redis pada .env, lalu tekan Periksa koneksi Redis.';
+          this.state.data.redisConnection.status === 'local'
+            ? this.state.data.redisConnection.message
+            : 'Selesaikan persiapan Koneksi Redis pada .env, lalu tekan Periksa koneksi Redis.';
       }
       this.state.emit();
       return;
@@ -182,6 +197,10 @@ export class Runtime {
     this.requireExercise('KORVET-02');
     this.infra.requireKorvet();
     if (this.consumerStarting) return this.consumerStarting;
+    await this.consumerStopping;
+    this.requireExercise('KORVET-02');
+    this.infra.requireKorvet();
+    if (this.consumerStarting) return this.consumerStarting;
     if (this.consumer) return;
     this.consumerStarting = (async () => {
       const client = makeConsumer(config.groupId);
@@ -212,12 +231,18 @@ export class Runtime {
     await this.consumerStarting;
   }
   async stopConsumer(): Promise<void> {
-    await this.consumerStarting?.catch(() => {});
-    const consumer = this.consumer;
-    this.consumer = undefined;
-    if (consumer) await consumer.disconnect().catch(() => {});
-    this.state.data.infra.consumer = false;
-    this.state.emit();
+    if (this.consumerStopping) return this.consumerStopping;
+    this.consumerStopping = (async () => {
+      await this.consumerStarting?.catch(() => {});
+      const consumer = this.consumer;
+      if (consumer) await consumer.disconnect().catch(() => {});
+      this.consumer = undefined;
+      this.state.data.infra.consumer = false;
+      this.state.emit();
+    })().finally(() => {
+      this.consumerStopping = undefined;
+    });
+    return this.consumerStopping;
   }
   async restartConsumer(): Promise<void> {
     await this.stopConsumer();

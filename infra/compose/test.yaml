@@ -1,10 +1,22 @@
 # Instance infrastruktur khusus pengujian host; tidak mengubah broker lab utama.
 services:
   redis:
+    image: redis:8.2.3-alpine
+    command: ['redis-server', '--appendonly', 'yes']
     ports: !override ['127.0.0.1:16379:6379']
+    volumes: !override ['redis-test-data:/data']
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 3s
+      timeout: 2s
+      retries: 15
   korvet:
     ports: !override ['127.0.0.1:19092:9092']
     environment:
-      KORVET_REDIS_URI: redis://redis:6379
+      REDIS_URL: redis://redis:6379
+      KORVET_REDIS_USE_LINK: 'false'
       KORVET_BROKER_ADVERTISED_HOST: localhost
       KORVET_BROKER_ADVERTISED_PORT: '19092'
+    depends_on: { redis: { condition: service_healthy } }
+volumes:
+  redis-test-data:

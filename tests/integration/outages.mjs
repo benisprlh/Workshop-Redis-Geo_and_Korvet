@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, cp, copyFile, symlink, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, cp, copyFile, symlink, rm, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { spawn, execFile } from 'node:child_process';
@@ -6,6 +6,7 @@ import { promisify } from 'node:util';
 import { once } from 'node:events';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { remoteRedisFixture } from '../support/redis-endpoint.mjs';
 
 // Menghentikan hanya instance fieldops-test dari infra/compose/test.yaml.
 if (!process.argv.includes('--local-test-instance'))
@@ -17,6 +18,7 @@ const root = process.cwd(),
 const lab = `fieldops-fault-${randomUUID().slice(0, 8)}`,
   port = 3102,
   base = `http://localhost:${port}`;
+const redisEndpoint = await remoteRedisFixture('redis://localhost:16379');
 await mkdir(resolve(temp, 'apps/api'), { recursive: true });
 await cp(resolve(root, 'apps/api/src'), resolve(temp, 'apps/api/src'), { recursive: true });
 await cp(resolve(root, 'packages/contracts'), resolve(temp, 'packages/contracts'), {
@@ -24,6 +26,18 @@ await cp(resolve(root, 'packages/contracts'), resolve(temp, 'packages/contracts'
 });
 await copyFile(resolve(root, 'package.json'), resolve(temp, 'package.json'));
 await symlink(resolve(root, 'node_modules'), resolve(temp, 'node_modules'), 'dir');
+// Diagnostik hanya pada salinan uji; tidak mengekspor error client/URI ke UI aplikasi.
+const appFile = resolve(temp, 'apps/api/src/http/app.ts');
+await writeFile(
+  appFile,
+  (await readFile(appFile, 'utf8')).replace(
+    '      res.status(status).json({',
+    `      const detail = error as { name?: string; type?: string; code?: number; groups?: { errorCode: number }[] };
+      console.error(JSON.stringify({ path: _req.path, name: detail.name, type: detail.type, code: detail.code, groups: detail.groups?.map(g => g.errorCode) }));
+      res.status(status).json({`,
+  ),
+);
+let output = '';
 for (const name of ['geo', 'korvet'])
   await copyFile(
     resolve(root, `workshop/solutions/${name}.solution.ts`),
@@ -38,14 +52,20 @@ const child = spawn(
       ...process.env,
       LAB_ID: lab,
       API_PORT: String(port),
-      REDIS_URL: 'redis://localhost:16379',
+      REDIS_URL: redisEndpoint.url,
       KAFKA_BROKERS: 'localhost:19092',
       TELEMETRY_TOPIC: '',
       KAFKA_GROUP_ID: '',
     },
-    stdio: 'ignore',
+    stdio: ['ignore', 'pipe', 'pipe'],
   },
 );
+child.stdout.on('data', (chunk) => {
+  output += chunk;
+});
+child.stderr.on('data', (chunk) => {
+  output += chunk;
+});
 const compose = async (...args) =>
   promisify(execFile)(
     resolve(root, 'scripts/workspace-compose.sh'),
@@ -86,7 +106,8 @@ async function validate() {
   );
 }
 try {
-  await wait(async () => (await api('/state')).infra.redis);
+  await wait(async () => (await api('/state')).labId === lab);
+  assert.equal((await api('/state')).infra.redis, false);
   await api('/workshop/redis/check', 'POST', {});
   await wait(async () => (await api('/state')).infra.producer);
   await validate();
@@ -139,10 +160,28 @@ try {
   const restored = { ...event, eventId: randomUUID(), timestamp: new Date().toISOString() };
   await api('/telemetry', 'POST', restored);
   await wait(async () => (await api('/state')).events.some((e) => e.eventId === restored.eventId));
-  await api('/data/reset', 'POST', { confirm: lab });
+  const reset = await fetch(`${base}/api/data/reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ confirm: lab }),
+  });
+  if (reset.status === 409) {
+    assert.match((await reset.json()).error, /Consumer group lab masih aktif/);
+    // Korvet 0.19 dapat mempertahankan membership setelah storage terputus.
+    // Restart hanya broker fixture terisolasi; aplikasi tidak mereset broker instruktur.
+    await compose('restart', 'korvet');
+    await compose('up', '-d', '--wait', 'korvet');
+    await api('/data/reset', 'POST', { confirm: lab });
+    console.log(
+      'LULUS: membership Korvet yang tertinggal memberi 409 dengan petunjuk; restart broker fixture memulihkan reset.',
+    );
+  } else assert.ok(reset.ok, `Reset data: ${reset.status}`);
   console.log(
     'LULUS: Korvet/Redis dihentikan nyata; API tetap hidup, fitur memberi 503, validator tidak memberi sukses palsu, consumer pulih dan data tetap melalui stream.',
   );
+} catch (error) {
+  console.error(output.slice(-3000));
+  throw error;
 } finally {
   await compose('up', '-d', 'redis', 'korvet').catch(() => {});
   await api('/data/reset', 'POST', { confirm: lab }).catch(() => {});
@@ -152,4 +191,5 @@ try {
     if (child.exitCode === null) child.kill('SIGKILL');
   }
   await rm(temp, { recursive: true, force: true });
+  await redisEndpoint.close();
 }

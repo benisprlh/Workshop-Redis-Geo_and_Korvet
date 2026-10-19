@@ -2,7 +2,7 @@ import type { Asset, Technician, Position } from '@fieldops/contracts';
 
 // Titik representatif wilayah Jakarta Pusat dari OpenStreetMap, diperiksa 7 Oktober 2026.
 // Aset dan teknisi adalah data workshop; titik ini bukan lokasi fasilitas operasional.
-// Sumber koordinat dan relation ID: docs/assets/jakarta-locations.json.
+// Sumber koordinat dan relation ID: jakarta-locations.json pada direktori ini.
 const locations: Record<string, Position> = {
   Gambir: { longitude: 106.8167439, latitude: -6.1711625 },
   Menteng: { longitude: 106.8322242, latitude: -6.1950265 },

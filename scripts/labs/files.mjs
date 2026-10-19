@@ -21,4 +21,6 @@ for (const name of modules) {
     `${name}: ${action === 'apply' ? 'jawaban diterapkan' : 'starter dipulihkan'}. Backup: .workshop-backups/${stamp}-${action}/${name}.ts`,
   );
 }
-console.log('Data tidak direset. Tunggu watcher memulai ulang API, lalu Periksa latihan.');
+console.log(
+  'Data tidak direset. Tunggu watcher memulai ulang API, lalu Periksa koneksi Redis dan Periksa latihan.',
+);

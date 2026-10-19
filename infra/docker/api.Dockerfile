@@ -11,7 +11,7 @@ COPY packages/contracts packages/contracts
 COPY workshop workshop
 COPY scripts scripts
 COPY tests tests
-COPY docs docs
+COPY licenses licenses
 COPY README.md README.md
 EXPOSE 3001
 CMD ["npm", "run", "dev", "-w", "apps/api"]

@@ -3,12 +3,17 @@ import type { RedisConnection } from '@fieldops/contracts';
 import { makeRedis } from '../infrastructure/clients.js';
 import { config } from '../infrastructure/config.js';
 import { timeout } from '../shared/errors.js';
+import { isLocalRedisEndpoint, localRedisMessage } from '../infrastructure/redis-endpoint.js';
 
 export function initialRedisConnection(): RedisConnection {
   return {
-    status: 'unchecked',
+    status: !config.redis.issue && config.redis.endpoint.local ? 'local' : 'unchecked',
     endpoint: { ...config.redis.endpoint },
-    message: 'Isi endpoint pada .env, lalu periksa koneksi sebelum mengerjakan latihan.',
+    message:
+      config.redis.issue ||
+      (config.redis.endpoint.local
+        ? localRedisMessage
+        : 'Endpoint telah diisi. Koneksi belum dibuka; tekan Periksa koneksi Redis untuk melanjutkan.'),
     checks: { ping: false, writeRead: false, cleanup: false },
   };
 }
@@ -61,9 +66,12 @@ export async function checkRedisConnection(): Promise<RedisConnection> {
       })(),
       config.redis.connectTimeout + 6000,
     );
-    result.status = 'passed';
-    result.message =
-      'Koneksi terverifikasi. PING, dua nilai baca/tulis, dan cleanup fixture berhasil. Lanjutkan GEO-01.';
+    phase = 'endpoint nonlokal';
+    result.endpoint.local = await timeout(isLocalRedisEndpoint(result.endpoint.host), 2000);
+    result.status = result.endpoint.local ? 'local' : 'passed';
+    result.message = result.endpoint.local
+      ? `Redis lokal tersambung; PING, baca/tulis, dan cleanup berhasil. ${localRedisMessage}`
+      : 'Koneksi terverifikasi. Endpoint nonlokal, PING, dua nilai baca/tulis, dan cleanup fixture berhasil. Lanjutkan GEO-01.';
   } catch (error) {
     result.message = failureMessage(error, phase);
   } finally {

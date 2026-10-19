@@ -1,4 +1,6 @@
 # Hanya API dan web menggunakan endpoint instruktur dari .env.
 services:
+  redis:
+    profiles: ['local']
   api:
     depends_on: !reset {}

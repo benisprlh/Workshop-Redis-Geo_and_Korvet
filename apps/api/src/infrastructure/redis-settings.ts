@@ -1,16 +1,18 @@
 import { readFileSync } from 'node:fs';
 import type { RedisClientOptions } from 'redis';
 import type { RedisConnection } from '@fieldops/contracts';
+import { isLocalRedisHost } from './redis-endpoint.js';
 
 /** Konfigurasi backend saja. Jangan serialisasikan options atau URI ke browser. */
 export function readRedisSettings(environment: NodeJS.ProcessEnv) {
-  const url = environment.REDIS_URL || 'redis://localhost:6379';
+  const url = environment.REDIS_URL?.trim() || '';
   const caFile = environment.REDIS_CA_FILE || '';
   const certFile = environment.REDIS_CLIENT_CERT_FILE || '';
   const keyFile = environment.REDIS_CLIENT_KEY_FILE || '';
   const connectTimeout = Number(environment.REDIS_CONNECT_TIMEOUT_MS || 5000);
   const endpoint: RedisConnection['endpoint'] = {
     host: '',
+    local: false,
     port: 6379,
     database: 0,
     tls: false,
@@ -19,8 +21,7 @@ export function readRedisSettings(environment: NodeJS.ProcessEnv) {
     clientCertificateConfigured: Boolean(certFile && keyFile),
   };
   let issue: string | undefined;
-  // Client inert tetap dapat dibuat jika URL salah; connect ditolak sebelum membuka socket.
-  let options: RedisClientOptions = { socket: { host: '127.0.0.1', port: 1 } };
+  let options: RedisClientOptions | undefined;
   try {
     const address = new URL(url);
     if (
@@ -38,6 +39,7 @@ export function readRedisSettings(environment: NodeJS.ProcessEnv) {
     decodeURIComponent(address.password);
     Object.assign(endpoint, {
       host: address.hostname,
+      local: isLocalRedisHost(address.hostname),
       port,
       database: Number(database),
       tls: address.protocol === 'rediss:',
@@ -45,8 +47,9 @@ export function readRedisSettings(environment: NodeJS.ProcessEnv) {
     });
     options = { url };
   } catch {
-    issue =
-      'REDIS_URL tidak valid. Gunakan redis:// atau rediss:// dengan hostname dan port database. Encode karakter khusus pada username/password.';
+    issue = url
+      ? 'REDIS_URL tidak valid. Gunakan redis:// atau rediss:// dengan hostname dan port database. Encode karakter khusus pada username/password.'
+      : 'REDIS_URL belum diisi. Isi endpoint database Redis di .env, terapkan ulang konfigurasi backend, lalu periksa koneksi.';
   }
   if (
     !issue &&
@@ -57,7 +60,7 @@ export function readRedisSettings(environment: NodeJS.ProcessEnv) {
     issue = 'Isi REDIS_CLIENT_CERT_FILE dan REDIS_CLIENT_KEY_FILE berpasangan untuk mutual TLS.';
   if (!issue && !endpoint.tls && (caFile || certFile || keyFile))
     issue = 'Sertifikat TLS memerlukan REDIS_URL dengan skema rediss://.';
-  if (!issue && endpoint.tls) {
+  if (!issue && endpoint.tls && options) {
     try {
       options.socket = {
         tls: true,

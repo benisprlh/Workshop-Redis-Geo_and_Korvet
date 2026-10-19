@@ -8,6 +8,7 @@ import { once } from 'node:events';
 import assert from 'node:assert/strict';
 import { createClient } from 'redis';
 import { readFile } from 'node:fs/promises';
+import { remoteRedisFixture } from '../support/redis-endpoint.mjs';
 
 const root = process.cwd();
 const run = promisify(execFile);
@@ -19,7 +20,15 @@ const labId = `fieldops-conn-${randomUUID().slice(0, 8)}`;
 const compose = (...args) =>
   run(
     resolve(root, 'scripts/workspace-compose.sh'),
-    ['-f', 'compose.yaml', '-f', 'infra/compose/connection-test.yaml', ...args],
+    [
+      '-f',
+      'compose.yaml',
+      '-f',
+      'infra/compose/connection-test.yaml',
+      '--profile',
+      'streaming',
+      ...args,
+    ],
     { cwd: root, timeout: 60000, maxBuffer: 1024 * 1024 },
   );
 let child,
@@ -57,15 +66,18 @@ async function stop() {
     }
   }
 }
+const redisEndpoint = await remoteRedisFixture(
+  'rediss://default:fieldops-test-password@localhost:17379',
+);
 const environment = {
   ...process.env,
   LAB_ID: labId,
   API_PORT: String(port),
-  REDIS_URL: 'rediss://default:fieldops-test-password@localhost:17379',
+  REDIS_URL: redisEndpoint.url,
   REDIS_CA_FILE: resolve(certs, 'ca.pem'),
   REDIS_CLIENT_CERT_FILE: resolve(certs, 'client.crt'),
   REDIS_CLIENT_KEY_FILE: resolve(certs, 'client.key'),
-  REDIS_TLS_SERVERNAME: '',
+  REDIS_TLS_SERVERNAME: redisEndpoint.servername,
   REDIS_CONNECT_TIMEOUT_MS: '1500',
   KAFKA_BROKERS: 'localhost:19192',
   TELEMETRY_TOPIC: '',
@@ -166,7 +178,13 @@ try {
   await chmod(resolve(certs, 'server.key'), 0o644);
   await compose('up', '-d', '--build', 'redis', 'redis-link', 'korvet');
   await mkdir(resolve(fixture, 'apps/api'), { recursive: true });
-  for (const name of ['apps/api/src', 'packages/contracts', 'docs'])
+  for (const name of [
+    'apps/api/src',
+    'packages/contracts',
+    'README.md',
+    'licenses',
+    'apps/web/public',
+  ])
     await cp(resolve(root, name), resolve(fixture, name), { recursive: true });
   await copyFile(resolve(root, 'package.json'), resolve(fixture, 'package.json'));
   await symlink(resolve(root, 'node_modules'), resolve(fixture, 'node_modules'), 'dir');
@@ -175,6 +193,7 @@ try {
       resolve(root, `workshop/starters/${name}.ts`),
       resolve(fixture, `apps/api/src/labs/${name}.ts`),
     );
+  await failedCase('REDIS_URL kosong', { REDIS_URL: '' }, /REDIS_URL belum diisi/);
   await failedCase(
     'URL salah tidak mematikan API',
     { REDIS_URL: 'https://localhost:17379' },
@@ -202,8 +221,25 @@ try {
     { REDIS_URL: 'rediss://default:fieldops-test-password@localhost:1' },
     /tidak dapat dijangkau/,
   );
+  await start({ REDIS_URL: 'rediss://default:fieldops-test-password@localhost:17379' });
+  const local = await api('/workshop/redis/check', 'POST');
+  assert.equal(local.redisConnection.status, 'local');
+  assert.deepEqual(local.redisConnection.checks, { ping: true, writeRead: true, cleanup: true });
+  assert.equal(local.infra.producer, false);
+  assert.ok(
+    (await api('/workshop/validate', 'POST')).exercises.every((e) => e.status === 'dependency'),
+  );
+  const localSearch = await fetch(`${base}/api/geo/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ center: { longitude: 106.816, latitude: -6.171 }, radiusKm: 3 }),
+  });
+  assert.equal(localSearch.status, 423);
+  console.log(
+    'LULUS: Redis localhost asli tersambung, tetapi empat latihan dan API bisnis tetap terkunci.',
+  );
   await start();
-  await wait(async () => (await api('/state')).infra.redis);
+  assert.equal((await api('/state')).infra.redis, false, 'Tidak tersambung otomatis.');
   const blocked = await api('/workshop/validate', 'POST');
   assert.ok(blocked.exercises.every((e) => e.status === 'dependency'));
   const state = await api('/workshop/redis/check', 'POST');
@@ -218,6 +254,7 @@ try {
       cert: await readFile(resolve(certs, 'client.crt')),
       key: await readFile(resolve(certs, 'client.key')),
       rejectUnauthorized: true,
+      servername: environment.REDIS_TLS_SERVERNAME,
     },
   });
   observer.on('error', () => {});
@@ -241,7 +278,7 @@ try {
   // Alur bisnis lengkap pada salinan solusi, dengan Korvet resmi menulis ke Redis TLS yang sama.
   const integration = await run(
     process.execPath,
-    [resolve(root, 'tests/integration/solutions.mjs')],
+    [resolve(root, 'tests/integration/solutions.mjs'), '--readme'],
     { cwd: root, env: environment, timeout: 300000, maxBuffer: 1024 * 1024 },
   );
   console.log(integration.stdout.trim());
@@ -253,5 +290,6 @@ try {
 } finally {
   await stop();
   await compose('down').catch(() => {});
+  await redisEndpoint.close();
   await rm(fixture, { recursive: true, force: true });
 }

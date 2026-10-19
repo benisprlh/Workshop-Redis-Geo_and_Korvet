@@ -2,6 +2,7 @@
 name: fieldops-connection-test
 services:
   redis:
+    image: redis:8.2.3-alpine
     command: ['redis-server', '/etc/redis/lab.conf']
     ports: !override ['127.0.0.1:17379:6379']
     volumes: !override
@@ -25,6 +26,9 @@ services:
           '--no-auth-warning',
           'ping',
         ]
+      interval: 3s
+      timeout: 2s
+      retries: 15
   korvet:
     entrypoint: ['/bin/sh', '/workshop/korvet-entrypoint.sh']
     depends_on: !override
@@ -33,6 +37,7 @@ services:
     ports: !override ['127.0.0.1:19192:9092']
     environment:
       REDIS_URL: rediss://default:fieldops-test-password@redis:6379
+      KORVET_REDIS_USE_LINK: 'true'
       KORVET_BROKER_ADVERTISED_HOST: localhost
       KORVET_BROKER_ADVERTISED_PORT: '19192'
     volumes:

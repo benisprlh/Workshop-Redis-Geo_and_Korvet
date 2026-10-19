@@ -7,17 +7,32 @@ import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { Kafka, logLevel } from 'kafkajs';
+import { remoteRedisFixture } from '../support/redis-endpoint.mjs';
 
-// Jalankan di container API: broker mengiklankan alamat jaringan Compose.
-const root = process.cwd(),
-  fixture = await mkdtemp(resolve(tmpdir(), 'fieldops-watch-'));
+// Endpoint uji harus eksplisit dan advertised address Korvet dapat dijangkau runner.
+const root = process.cwd();
+assert.ok(process.env.REDIS_URL?.trim(), 'Isi REDIS_URL untuk database uji secara eksplisit.');
+const redisEndpoint = await remoteRedisFixture(process.env.REDIS_URL);
+const fixture = await mkdtemp(resolve(tmpdir(), 'fieldops-watch-'));
 const labId = `fieldops-watch-${randomUUID().slice(0, 8)}`,
   port = 3103;
 const base = `http://localhost:${port}`;
 await mkdir(resolve(fixture, 'apps/api'), { recursive: true });
-for (const path of ['apps/api/src', 'packages/contracts', 'docs', 'workshop']) {
+for (const path of [
+  'apps/api/src',
+  'packages/contracts',
+  'README.md',
+  'licenses',
+  'apps/web/public',
+  'workshop',
+]) {
   await cp(resolve(root, path), resolve(fixture, path), { recursive: true });
 }
+for (const name of ['geo', 'korvet'])
+  await copyFile(
+    resolve(root, `workshop/starters/${name}.ts`),
+    resolve(fixture, `apps/api/src/labs/${name}.ts`),
+  );
 await copyFile(resolve(root, 'package.json'), resolve(fixture, 'package.json'));
 await symlink(resolve(root, 'node_modules'), resolve(fixture, 'node_modules'), 'dir');
 let output = '';
@@ -34,6 +49,8 @@ const child = spawn(
     env: {
       ...process.env,
       LAB_ID: labId,
+      REDIS_URL: redisEndpoint.url,
+      REDIS_TLS_SERVERNAME: process.env.REDIS_TLS_SERVERNAME || redisEndpoint.servername,
       API_PORT: String(port),
       TELEMETRY_TOPIC: '',
       KAFKA_GROUP_ID: '',
@@ -79,7 +96,8 @@ async function change(action) {
   );
   await wait(() => starts() > previous);
   await pause(1000);
-  await wait(async () => (await api('/state')).infra.redis);
+  await wait(async () => (await api('/state')).labId === labId);
+  assert.equal((await api('/state')).infra.redis, false);
   assert.equal((await api('/workshop/redis/check', 'POST', {})).redisConnection.status, 'passed');
   await wait(async () => (await api('/state')).infra.producer);
 }
@@ -100,7 +118,8 @@ const kafka = new Kafka({
 const admin = kafka.admin();
 const browsers = [];
 try {
-  await wait(async () => (await api('/state')).infra.redis);
+  await wait(async () => (await api('/state')).labId === labId);
+  assert.equal((await api('/state')).infra.redis, false);
   await api('/workshop/redis/check', 'POST', {});
   await wait(async () => (await api('/state')).infra.producer);
   assert.ok((await api('/state')).exercises.every((exercise) => exercise.status === 'todo'));
@@ -149,4 +168,5 @@ try {
     if (child.exitCode === null) child.kill('SIGKILL');
   }
   await rm(fixture, { recursive: true, force: true });
+  await redisEndpoint.close();
 }

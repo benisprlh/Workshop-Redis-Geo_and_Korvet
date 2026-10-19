@@ -6,9 +6,13 @@ import { randomUUID } from 'node:crypto';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { chromium } from '@playwright/test';
+import { remoteRedisFixture } from '../support/redis-endpoint.mjs';
 
-const root = process.cwd(),
-  temp = await mkdtemp(resolve(tmpdir(), 'fieldops-solution-'));
+const root = process.cwd();
+const fromReadme = process.argv.includes('--readme');
+assert.ok(process.env.REDIS_URL?.trim(), 'Isi REDIS_URL untuk database uji secara eksplisit.');
+const redisEndpoint = await remoteRedisFixture(process.env.REDIS_URL);
+const temp = await mkdtemp(resolve(tmpdir(), 'fieldops-solution-'));
 const labId = `fieldops-it-${randomUUID().slice(0, 8)}`;
 const port = Number(process.env.TEST_API_PORT || 3101),
   base = `http://localhost:${port}`;
@@ -18,7 +22,8 @@ const environment = {
   API_PORT: String(port),
   TELEMETRY_TOPIC: '',
   KAFKA_GROUP_ID: '',
-  REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+  REDIS_URL: redisEndpoint.url,
+  REDIS_TLS_SERVERNAME: process.env.REDIS_TLS_SERVERNAME || redisEndpoint.servername,
   KAFKA_BROKERS: process.env.KAFKA_BROKERS || 'localhost:9092',
 };
 await mkdir(resolve(temp, 'apps/api'), { recursive: true });
@@ -26,14 +31,32 @@ await cp(resolve(root, 'apps/api/src'), resolve(temp, 'apps/api/src'), { recursi
 await cp(resolve(root, 'packages/contracts'), resolve(temp, 'packages/contracts'), {
   recursive: true,
 });
-await cp(resolve(root, 'docs'), resolve(temp, 'docs'), { recursive: true });
+for (const path of ['README.md', 'licenses', 'apps/web/public'])
+  await cp(resolve(root, path), resolve(temp, path), { recursive: true });
 await copyFile(resolve(root, 'package.json'), resolve(temp, 'package.json'));
 await symlink(resolve(root, 'node_modules'), resolve(temp, 'node_modules'), 'dir');
 for (const name of ['geo', 'korvet'])
   await copyFile(
-    resolve(root, `workshop/solutions/${name}.solution.ts`),
+    resolve(
+      root,
+      fromReadme ? `workshop/starters/${name}.ts` : `workshop/solutions/${name}.solution.ts`,
+    ),
     resolve(temp, `apps/api/src/labs/${name}.ts`),
   );
+if (fromReadme) {
+  const guide = await readFile(resolve(root, 'README.md'), 'utf8');
+  for (const id of ['GEO-01', 'GEO-02', 'KORVET-01', 'KORVET-02']) {
+    const section = guide.split(`## ${id}\n`)[1]?.split('\n## ')[0];
+    const code = section?.match(/```ts\n([\s\S]*?)\n```/)?.[1];
+    assert.ok(code, `${id}: blok kode README harus tersedia.`);
+    const target = resolve(temp, `apps/api/src/labs/${id.startsWith('GEO') ? 'geo' : 'korvet'}.ts`);
+    const source = await readFile(target, 'utf8');
+    const marker = `throw new WorkshopTodoError('${id}');`;
+    assert.ok(source.includes(marker), `${id}: stub harus sesuai instruksi README.`);
+    await writeFile(target, source.replace(marker, code));
+  }
+  console.log('Empat implementasi diambil langsung dari blok salin-tempel README.');
+}
 let child, browser, web;
 let logs = '';
 async function wait(fn, seconds = 30, label = 'Kondisi belum tercapai') {
@@ -90,7 +113,7 @@ async function validate() {
   return state;
 }
 async function prepareConnection() {
-  await wait(async () => (await api('/state')).infra.redis, 40);
+  await wait(async () => (await api('/state')).labId === labId, 40);
   const state = await api('/workshop/redis/check', 'POST', {});
   assert.equal(state.redisConnection.status, 'passed', state.redisConnection.message);
   assert.deepEqual(state.redisConnection.checks, { ping: true, writeRead: true, cleanup: true });
@@ -125,7 +148,8 @@ async function screenshot(page, name) {
 }
 try {
   start();
-  await wait(async () => (await api('/state')).infra.redis, 40);
+  await wait(async () => (await api('/state')).labId === labId, 40);
+  assert.equal((await api('/state')).infra.redis, false, 'Tidak tersambung otomatis.');
   assert.equal((await api('/state')).redisConnection.status, 'unchecked');
   const beforeConnection = await api('/workshop/validate', 'POST', {});
   assert.ok(beforeConnection.exercises.every((e) => e.status === 'dependency'));
@@ -369,4 +393,5 @@ try {
   }
   if (web?.exitCode === null) web.kill('SIGTERM');
   await rm(temp, { recursive: true, force: true });
+  await redisEndpoint.close();
 }

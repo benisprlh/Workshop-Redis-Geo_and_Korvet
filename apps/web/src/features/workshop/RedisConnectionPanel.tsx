@@ -22,6 +22,7 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
     checking: 'Memeriksa…',
     passed: 'Terverifikasi',
     failed: 'Periksa konfigurasi',
+    local: 'Lokal · terkunci',
   };
   return (
     <section className="exercise-detail connection-detail" aria-label="Persiapan koneksi Redis">
@@ -31,7 +32,7 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
           tone={
             connection.status === 'passed'
               ? 'green'
-              : connection.status === 'failed'
+              : ['failed', 'local'].includes(connection.status)
                 ? 'amber'
                 : 'neutral'
           }
@@ -52,29 +53,32 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
       </div>
       <dl className="connection-endpoint">
         <dt>Endpoint backend</dt>
-        <dd>{endpoint.host ? `${endpoint.host}:${endpoint.port}` : 'Konfigurasi belum valid'}</dd>
+        <dd>{endpoint.host ? `${endpoint.host}:${endpoint.port}` : 'Belum dikonfigurasi'}</dd>
         <dt>Transport</dt>
-        <dd>{endpoint.tls ? 'TLS · rediss://' : 'Tanpa TLS · redis://'}</dd>
+        <dd>{endpoint.host ? (endpoint.tls ? 'TLS · rediss://' : 'Tanpa TLS · redis://') : '—'}</dd>
         <dt>Kredensial</dt>
         <dd>
           {endpoint.credentialsConfigured ? 'Dikonfigurasi di backend' : 'Tidak dikonfigurasi'}
         </dd>
         <dt>Database</dt>
-        <dd>{endpoint.database}</dd>
+        <dd>{endpoint.host ? endpoint.database : '—'}</dd>
       </dl>
       {copyError && (
         <p className="inline-error" role="alert">
           {copyError}
         </p>
       )}
-      <details className="connection-instructions" open={connection.status !== 'passed'}>
+      <details
+        className="connection-instructions"
+        open={['unchecked', 'failed'].includes(connection.status)}
+      >
         <summary>Langkah menghubungkan Redis</summary>
         <ol className="connection-steps">
           <li>
             <strong>Isi endpoint database</strong>
             <p>
               Ubah REDIS_URL di .env sesuai endpoint, port, dan akun Redis Enterprise dari
-              instruktur.
+              instruktur. Redis lokal bawaan hanya koneksi awal; latihan memerlukan endpoint lain.
             </p>
           </li>
           <li>
@@ -88,7 +92,7 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
             <strong>Periksa koneksi</strong>
             <p>
               Pemeriksaan memakai PING serta key sementara untuk baca/tulis dan cleanup. Setelah
-              lulus, lanjutkan GEO-01.
+              lulus pada endpoint nonlokal, lanjutkan GEO-01.
             </p>
           </li>
         </ol>
@@ -119,18 +123,13 @@ export default function RedisConnectionPanel({ connection }: { connection: Redis
         ))}
       </div>
       <p
-        className={`exercise-message ${connection.status === 'failed' ? 'warning' : ''}`}
+        className={`exercise-message ${['failed', 'local'].includes(connection.status) ? 'warning' : ''}`}
         role="status"
       >
         {connection.message}
         {connection.checkedAt && <small>Diperiksa {time(connection.checkedAt)}</small>}
       </p>
-      <a
-        className="text-button"
-        href="/api/docs/workshop.md#koneksi-redis"
-        target="_blank"
-        rel="noreferrer"
-      >
+      <a className="text-button" href="/api/guide#koneksi-redis" target="_blank" rel="noreferrer">
         Baca panduan koneksi
         <ExternalLink size={12} />
       </a>

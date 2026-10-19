@@ -4,6 +4,8 @@ import { config } from './config.js';
 import { InfrastructureError, timeout } from '../shared/errors.js';
 
 export function makeRedis(reconnect = false) {
+  if (config.redis.issue || !config.redis.options)
+    throw new InfrastructureError(config.redis.issue || 'Isi REDIS_URL pada .env.');
   const client = createClient({
     ...config.redis.options,
     disableOfflineQueue: true,
@@ -13,11 +15,6 @@ export function makeRedis(reconnect = false) {
       reconnectStrategy: reconnect ? (retries) => Math.min(300 + retries * 300, 3000) : false,
     },
   });
-  const connect = client.connect.bind(client);
-  client.connect = async () => {
-    if (config.redis.issue) throw new InfrastructureError(config.redis.issue);
-    return connect();
-  };
   client.on('error', () => {}); // URI dan kredensial tetap berada pada backend.
   return client;
 }
@@ -95,7 +92,7 @@ export async function deleteFixtureTopics(topics: string[], groups: string[]): P
   }
 }
 export class Infrastructure {
-  redis = makeRedis(true);
+  private redisClient?: ReturnType<typeof makeRedis>;
   producer = makeProducer();
   redisReady = false;
   korvetReady = false;
@@ -105,25 +102,45 @@ export class Infrastructure {
   private timer?: ReturnType<typeof setInterval>;
   private streamingEnabled = false;
   constructor(private changed: () => void) {
-    this.redis.on('ready', () => {
-      this.redisReady = true;
-      changed();
-    });
-    this.redis.on('error', () => {
-      this.redisReady = false;
-      changed();
-    });
-    this.redis.on('end', () => {
-      this.redisReady = false;
-      changed();
-    });
     this.producer.on(this.producer.events.DISCONNECT, () => {
       this.producerReady = false;
       changed();
     });
   }
+  get redis(): ReturnType<typeof makeRedis> {
+    if (this.redisClient) return this.redisClient;
+    const redis = makeRedis(true);
+    redis.on('ready', () => {
+      this.redisReady = true;
+      this.changed();
+    });
+    redis.on('error', () => {
+      this.redisReady = false;
+      this.changed();
+    });
+    redis.on('end', () => {
+      this.redisReady = false;
+      this.changed();
+    });
+    this.redisClient = redis;
+    return redis;
+  }
+  /** Dibuka hanya setelah peserta memeriksa konfigurasi; startup tidak membuka socket Redis. */
+  async connectRedis(): Promise<void> {
+    if (this.closed) throw new InfrastructureError('Backend sedang dihentikan.');
+    const redis = this.redis;
+    if (redis.isReady) return;
+    if (redis.isOpen) await redis.disconnect();
+    try {
+      await timeout(redis.connect(), config.redis.connectTimeout + 1000);
+    } catch {
+      if (redis.isOpen) await redis.disconnect().catch(() => {});
+      throw new InfrastructureError(
+        'Koneksi utama Redis belum siap. Periksa endpoint dan jaringan, lalu periksa koneksi kembali.',
+      );
+    }
+  }
   start(): void {
-    void this.redis.connect().catch(() => {});
     void this.refresh();
     this.timer = setInterval(() => {
       void this.refresh();
@@ -148,9 +165,9 @@ export class Infrastructure {
           this.korvetReady = false;
           this.producerReady = false;
         }
-      if (this.redis.isReady) {
+      if (this.redisClient?.isReady) {
         try {
-          await timeout(this.redis.ping(), 2000);
+          await timeout(this.redisClient.ping(), 2000);
           this.redisReady = true;
         } catch {
           this.redisReady = false;
@@ -163,7 +180,7 @@ export class Infrastructure {
     return this.connecting;
   }
   requireRedis(): void {
-    if (!this.redisReady || !this.redis.isReady)
+    if (!this.redisReady || !this.redisClient?.isReady)
       throw new InfrastructureError('Redis tidak tersambung. Periksa REDIS_URL dan layanan Redis.');
   }
   requireKorvet(): void {
@@ -177,6 +194,6 @@ export class Infrastructure {
     clearInterval(this.timer);
     await this.connecting?.catch(() => {});
     await this.producer.disconnect().catch(() => {});
-    if (this.redis.isOpen) await this.redis.disconnect().catch(() => {});
+    if (this.redisClient?.isOpen) await this.redisClient.disconnect().catch(() => {});
   }
 }

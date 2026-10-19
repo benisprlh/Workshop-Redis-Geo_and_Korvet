@@ -11,9 +11,10 @@ export interface Position {
   latitude: number;
 }
 export interface RedisConnection {
-  status: 'unchecked' | 'checking' | 'passed' | 'failed';
+  status: 'unchecked' | 'checking' | 'passed' | 'failed' | 'local';
   endpoint: {
     host: string;
+    local: boolean;
     port: number;
     database: number;
     tls: boolean;

@@ -23,7 +23,6 @@ export const config = {
   labId,
   topic,
   groupId,
-  redisUrl: process.env.REDIS_URL || 'redis://localhost:6379',
   redis: readRedisSettings(process.env),
   brokers: (process.env.KAFKA_BROKERS || 'localhost:9092')
     .split(',')

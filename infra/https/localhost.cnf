@@ -1,0 +1,13 @@
+[req]
+prompt = no
+distinguished_name = subject
+x509_extensions = server
+
+[subject]
+CN = localhost
+
+[server]
+subjectAltName = DNS:localhost,IP:127.0.0.1,IP:::1
+basicConstraints = critical,CA:FALSE
+keyUsage = critical,digitalSignature,keyEncipherment
+extendedKeyUsage = serverAuth

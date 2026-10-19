@@ -3,21 +3,13 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { marked, Renderer } from 'marked';
 
-const documents: Record<string, string> = {
-  'README.md': 'README.md',
-  'workshop.md': 'docs/workshop.md',
-  'operations.md': 'docs/operations.md',
-  'references.md': 'docs/references.md',
+const assets: Record<string, string> = {
+  'theme.css': 'apps/api/src/http/guide.css',
+  'copy.js': 'apps/api/src/http/guide-copy.js',
+  'workshop.png': 'apps/web/public/workshop.png',
+  'jakarta-locations.json': 'apps/api/src/operations/jakarta-locations.json',
+  'korvet-LICENSE.txt': 'licenses/korvet-LICENSE.txt',
 };
-const assets = new Set([
-  'overview.png',
-  'assignment.png',
-  'monitoring.png',
-  'workshop.png',
-  'assignment-solution.png',
-  'monitoring-solution.png',
-  'jakarta-locations.json',
-]);
 const projectRoot = () =>
   process.cwd().endsWith('/apps/api') ? resolve(process.cwd(), '../..') : process.cwd();
 const escape = (value: string) =>
@@ -46,47 +38,41 @@ renderer.link = ({ href, tokens }) => {
     return `<a href="${escape(href)}">${label}</a>`;
   const [path, anchor] = href.split('#');
   const file = path.split('/').at(-1)!;
-  if (Object.hasOwn(documents, file))
-    return `<a href="/api/docs/${file}${anchor ? `#${escape(anchor)}` : ''}">${label}</a>`;
-  if (path === 'licenses/korvet-LICENSE.txt')
-    return `<a href="/api/docs/licenses/korvet-LICENSE.txt">${label}</a>`;
-  if (assets.has(file)) return `<a href="/api/docs/assets/${file}">${label}</a>`;
+  if (file === 'README.md')
+    return `<a href="/api/guide${anchor ? `#${escape(anchor)}` : ''}">${label}</a>`;
+  if (Object.hasOwn(assets, file)) return `<a href="/api/guide/${file}">${label}</a>`;
   // Referensi source tetap dibaca dari checkout, bukan dipublikasikan lewat endpoint panduan.
   return label;
 };
 renderer.image = ({ href, text }) => {
   const file = href.split('/').at(-1)!;
-  return assets.has(file)
-    ? `<img src="/api/docs/assets/${file}" alt="${escape(text)}">`
+  return Object.hasOwn(assets, file)
+    ? `<img src="/api/guide/${file}" alt="${escape(text)}">`
     : escape(text);
 };
 
 export function registerGuides(app: Express): void {
-  app.get('/api/docs/theme.css', (_req, res) => {
-    res.type('css').sendFile(resolve(projectRoot(), 'docs/theme.css'));
-  });
-  app.get('/api/docs/assets/:file', (req, res) => {
-    if (!assets.has(req.params.file)) {
+  app.get('/api/guide/:asset', (req, res) => {
+    if (!Object.hasOwn(assets, req.params.asset)) {
       res.status(404).json({ error: 'Lampiran tidak ditemukan.' });
       return;
     }
-    res.sendFile(resolve(projectRoot(), 'docs/assets', req.params.file));
+    res.sendFile(resolve(projectRoot(), assets[req.params.asset]));
   });
-  app.get('/api/docs/licenses/korvet-LICENSE.txt', (_req, res) => {
-    res.type('text').sendFile(resolve(projectRoot(), 'docs/licenses/korvet-LICENSE.txt'));
+  // Tautan lama diarahkan ke satu sumber panduan yang dipelihara.
+  app.get('/api/docs/:file', (req, res) => {
+    if (['README.md', 'workshop.md', 'operations.md', 'references.md'].includes(req.params.file))
+      res.redirect(302, '/api/guide');
+    else res.status(404).json({ error: 'Panduan tidak ditemukan.' });
   });
-  app.get('/api/docs/:file', async (req, res, next) => {
-    if (!Object.hasOwn(documents, req.params.file)) {
-      res.status(404).json({ error: 'Panduan tidak ditemukan.' });
-      return;
-    }
+  app.get('/api/guide', async (_req, res, next) => {
     try {
-      const source = await readFile(resolve(projectRoot(), documents[req.params.file]), 'utf8');
+      const source = await readFile(resolve(projectRoot(), 'README.md'), 'utf8');
       const content = await marked(source, { renderer });
       res
         .type('html')
         .send(
-          `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FieldOps · Panduan workshop</title><link rel="stylesheet" href="/api/docs/theme.css"></head><body><header><div><strong>FieldOps</strong><a href="/#overview">Kembali ke konsol</a></div></header><main>${content}</main></body></html>`,
+          `<!doctype html><html lang="id"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>FieldOps · Panduan workshop</title><link rel="stylesheet" href="/api/guide/theme.css"><script defer src="/api/guide/copy.js"></script></head><body><header><div><strong>FieldOps</strong><a href="/#overview">Kembali ke konsol</a></div></header><main>${content}</main></body></html>`,
         );
     } catch (error) {
       next(error);
